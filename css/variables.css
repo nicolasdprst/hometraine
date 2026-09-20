@@ -1,0 +1,20 @@
+:root {
+    --bg-color: #0f172a;
+    --card-bg: rgba(30, 41, 59, 0.6);
+    --card-border: rgba(255, 255, 255, 0.1);
+    --text-primary: #f8fafc;
+    --text-secondary: #94a3b8;
+    --accent: #3b82f6;
+    --accent-hover: #2563eb;
+    --success: #10b981;
+    --danger: #ef4444;
+    --warning: #f59e0b;
+    
+    /* Power Zones */
+    --z1: #64748b; /* Recovery < 55% */
+    --z2: #3b82f6; /* Endurance 55-75% */
+    --z3: #10b981; /* Tempo 75-90% */
+    --z4: #eab308; /* Threshold 90-105% */
+    --z5: #f97316; /* VO2 Max 105-120% */
+    --z6: #ef4444; /* Anaerobic > 120% */
+}

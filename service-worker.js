@@ -1,7 +1,13 @@
-const CACHE_NAME = 'cyclodash-v12';
+const CACHE_NAME = 'cyclodash-v13';
 const ASSETS = [
   './index.html',
   './style.css',
+  './css/variables.css',
+  './css/base.css',
+  './css/layout.css',
+  './css/components.css',
+  './css/dashboard.css',
+  './css/responsive.css',
   './js/state.js',
   './js/bluetooth.js',
   './js/workout.js',

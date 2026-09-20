@@ -1,0 +1,191 @@
+/* Controls container */
+.controls { display: flex; gap: 1rem; margin-bottom: 2rem; }
+.controls .btn { flex: 1; }
+
+/* Dashboard Grid */
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.metric-card {
+    padding: 1.5rem;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+}
+
+.metric-title { font-size: 0.85rem; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.5rem; }
+.metric-value { font-size: 3rem; font-weight: 700; line-height: 1; margin-bottom: 0.25rem; }
+.metric-unit { font-size: 1rem; color: var(--text-secondary); }
+.metric-sub { font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.5rem; }
+
+/* Workout Indicator & Banner */
+.workout-banner {
+    display: none;
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+    text-align: center;
+    border-left: 5px solid var(--accent);
+}
+.workout-banner.active { display: block; }
+.workout-target { font-size: 1.5rem; font-weight: bold; margin: 0.5rem 0; }
+
+.zone-indicator {
+    height: 6px;
+    width: 100%;
+    background: #334155;
+    border-radius: 3px;
+    margin-top: 1rem;
+    position: relative;
+    overflow: hidden;
+}
+.zone-bar {
+    height: 100%;
+    width: 0%;
+    background: var(--z1);
+    transition: width 0.3s ease, background 0.3s ease;
+}
+
+/* Charts */
+.chart-container { height: 300px; padding: 1rem; margin-bottom: 1rem; }
+
+/* Extra Stats Grid */
+.stats-header {
+    margin-top: 1.5rem;
+    margin-bottom: 1rem;
+}
+.stats-header h2 {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--text-primary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-left: 3px solid var(--accent);
+    padding-left: 0.5rem;
+}
+.stats-extra-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+.stat-extra-card {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    padding: 1rem;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.stat-extra-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+    border-color: rgba(59, 130, 246, 0.3);
+}
+.stat-extra-icon {
+    font-size: 1.7rem;
+    background: rgba(255, 255, 255, 0.05);
+    width: 45px;
+    height: 45px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+.stat-extra-info {
+    display: flex;
+    flex-direction: column;
+}
+.stat-extra-title {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+.stat-extra-value {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-top: 0.1rem;
+}
+.stat-extra-unit {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+    font-weight: 400;
+}
+
+/* Workout Step List Roadmap */
+.workout-step-list {
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  text-align: left;
+}
+.step-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  font-size: 0.85rem;
+  transition: all 0.2s ease;
+}
+.step-item.active {
+  background: rgba(59, 130, 246, 0.09);
+  border-color: rgba(59, 130, 246, 0.25);
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(59, 130, 246, 0.08);
+}
+.step-item.completed {
+  opacity: 0.35;
+}
+.step-left {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-grow: 1;
+  min-width: 0;
+}
+.step-icon {
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+.step-desc {
+  color: var(--text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.step-duration {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  margin-left: 0.5rem;
+  flex-shrink: 0;
+}
+.step-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 0.25rem;
+  color: #fff;
+  text-shadow: 0 1px 1px rgba(0,0,0,0.4);
+  flex-shrink: 0;
+}
+.step-list-footer {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 0.25rem;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
