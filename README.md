@@ -20,7 +20,7 @@ L'application s'appuie sur l'API web bluetooth pour communiquer directement avec
 * Entraînements structurés :
   * Mode Roule libre ou séances ciblées par intervalles (Échauffement & Endurance, 30/30, Sweet Spot).
   * Jauge visuelle de maintien de zone et décompte dynamique de chaque palier.
-* Calcul personnalisé des zones (Coggan)** :
+* Calcul personnalisé des zones (Coggan) :
   * Définition de votre FTP (Functional Threshold Power) dans les paramètres.
   * Découpage automatique des zones de Z1 (Récupération) à Z6 (Anaérobie).
 * PWA : Installable sur smartphone, tablette ou bureau, avec mise en cache via Service Worker pour un fonctionnement hors-ligne.
