@@ -2,7 +2,7 @@
 
 let waitingWorker = null;
 
-window.addEventListener('DOMContentLoaded', () => {
+window.addEventListener('DOMContentLoaded', async () => {
     // 1. Boutons Dashboard (conservation stricte des IDs existants)
     const connectBtn = document.getElementById('connectBtn');
     const demoBtn = document.getElementById('demoBtn');
@@ -39,12 +39,28 @@ window.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-    // 4. Initialisations
+    // 4. Initialisation Multi-Profils & Supabase
+    if (window.profilesManager) {
+        await window.profilesManager.init();
+    }
+
+    // 5. Initialisations interface & graphiques
     loadSettings();
     renderHistory();
     initChart();
     syncControlsUI();
     updateWakeLockUI();
+    updateSupabaseAccountUI();
+
+    // 6. Vérifier si une séance précédente a été interrompue inopinément
+    if (window.checkInterruptedSession) {
+        window.checkInterruptedSession();
+    }
+
+    // 7. Traiter la file d'attente de synchronisation hors-ligne
+    if (window.processSyncQueue) {
+        window.processSyncQueue();
+    }
 
     // Onglet par défaut : Compteur
     switchTab('compteur');
@@ -67,6 +83,11 @@ window.switchTab = function(tabId) {
     // on rafraîchit immédiatement le graphique qui était en veille
     if (tabId === 'dashboard' && state.isRecording) {
         renderChartData();
+    }
+
+    // Si on bascule sur l'Historique, rafraîchir
+    if (tabId === 'history' && window.renderHistory) {
+        window.renderHistory();
     }
 };
 
@@ -112,12 +133,19 @@ window.saveSettings = function() {
     const ftpInput = document.getElementById('ftpInput');
     if (!ftpInput) return;
     
-    const val = ftpInput.value;
-    if (val && parseInt(val) > 0) {
-        state.ftp = parseInt(val);
+    const val = parseInt(ftpInput.value);
+    if (val && val > 0) {
+        state.ftp = val;
         localStorage.setItem('userFTP', state.ftp);
+        
+        // Mettre également à jour le profil actif
+        if (window.profilesManager && window.profilesManager.activeProfile) {
+            window.profilesManager.updateProfile(window.profilesManager.activeProfile.id, { ftp_watts: val })
+                .catch(e => console.warn(e));
+        }
+
         updateZonesDisplay();
-        alert('Paramètres enregistrés !');
+        alert('Paramètres et FTP enregistrés !');
     }
 };
 
@@ -145,6 +173,76 @@ window.toggleFullscreen = function() {
     }
 };
 
+// --- GESTION DU COMPTE SUPABASE D'INSTALLATION DANS PARAMÈTRES ---
+function updateSupabaseAccountUI() {
+    const isAuth = window.supabaseClient && window.supabaseClient.isAuthenticated();
+    const statusEl = document.getElementById('supabaseAccountStatus');
+    const loginForm = document.getElementById('supabaseLoginForm');
+    const loggedInBox = document.getElementById('supabaseLoggedInBox');
+    const userEmailEl = document.getElementById('supabaseUserEmail');
+
+    if (!statusEl) return;
+
+    if (isAuth) {
+        const user = window.supabaseClient.getUser();
+        statusEl.innerText = "Connecté au cloud Supabase";
+        statusEl.style.color = "var(--success)";
+        if (loginForm) loginForm.style.display = 'none';
+        if (loggedInBox) loggedInBox.style.display = 'block';
+        if (userEmailEl) userEmailEl.innerText = user ? user.email : 'Installation connectée';
+    } else {
+        statusEl.innerText = "Mode local (Non connecté à Supabase)";
+        statusEl.style.color = "var(--warning)";
+        if (loginForm) loginForm.style.display = 'block';
+        if (loggedInBox) loggedInBox.style.display = 'none';
+    }
+}
+
+window.handleSupabaseLogin = async function() {
+    const email = document.getElementById('supabaseEmailInput').value;
+    const password = document.getElementById('supabasePasswordInput').value;
+    if (!email || !password) {
+        alert("Veuillez renseigner un email et un mot de passe.");
+        return;
+    }
+
+    try {
+        await window.supabaseClient.signIn(email, password);
+        alert("Connexion Supabase réussie !");
+        updateSupabaseAccountUI();
+        if (window.profilesManager) await window.profilesManager.syncFromSupabase();
+        if (window.processSyncQueue) window.processSyncQueue();
+    } catch (err) {
+        alert(`Erreur de connexion : ${err.message}`);
+    }
+};
+
+window.handleSupabaseSignup = async function() {
+    const email = document.getElementById('supabaseEmailInput').value;
+    const password = document.getElementById('supabasePasswordInput').value;
+    if (!email || !password) {
+        alert("Veuillez renseigner un email et un mot de passe pour l'installation.");
+        return;
+    }
+
+    try {
+        await window.supabaseClient.signUp(email, password);
+        alert("Compte d'installation créé avec succès !");
+        updateSupabaseAccountUI();
+        if (window.profilesManager) await window.profilesManager.syncFromSupabase();
+    } catch (err) {
+        alert(`Erreur d'inscription : ${err.message}`);
+    }
+};
+
+window.handleSupabaseLogout = async function() {
+    if (confirm("Voulez-vous déconnecter ce compte d'installation Supabase ? (Vos profils locaux resteront disponibles)")) {
+        await window.supabaseClient.signOut();
+        updateSupabaseAccountUI();
+        alert("Déconnecté.");
+    }
+};
+
 // --- SÉCURISATION DU SERVICE WORKER (ZÉRO COUPURE EN SÉANCE) ---
 if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
@@ -159,7 +257,6 @@ if ('serviceWorker' in navigator) {
                     const newWorker = reg.installing;
                     newWorker.addEventListener('statechange', () => {
                         if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                            // Nouvelle version prête : on n'actualise JAMAIS brutalement
                             showUpdateToast(newWorker);
                         }
                     });
@@ -167,8 +264,6 @@ if ('serviceWorker' in navigator) {
             })
             .catch(err => console.error('Service Worker registration failed:', err));
 
-        // Rechargement sécurisé uniquement lorsque le nouveau worker prend le contrôle
-        // ET qu'aucune séance n'est en cours d'enregistrement
         let refreshing = false;
         navigator.serviceWorker.addEventListener('controllerchange', () => {
             if (refreshing) return;
@@ -187,7 +282,6 @@ function showUpdateToast(worker) {
     const toast = document.getElementById('updateToast');
     if (toast) {
         toast.style.display = 'flex';
-        // Si en cours d'enregistrement, message adapté
         const toastText = document.getElementById('updateToastText');
         if (toastText && state.isRecording) {
             toastText.innerText = "Mise à jour prête (sera appliquée après la séance)";

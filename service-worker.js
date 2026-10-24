@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cyclodash-v14';
+const CACHE_NAME = 'cyclodash-v15';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -11,6 +11,8 @@ const ASSETS = [
   './css/responsive.css',
   './js/vendor/chart.umd.js',
   './js/state.js',
+  './js/supabase.js',
+  './js/profiles.js',
   './js/bluetooth.js',
   './js/workout.js',
   './js/session.js',

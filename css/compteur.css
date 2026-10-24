@@ -356,3 +356,216 @@
         font-size: 0.9rem;
     }
 }
+
+/* ===== BATCH 2 : STYLES MULTI-PROFILS, SÉLECTEUR & STATISTIQUES ===== */
+
+/* Pastille Profil dans la topbar Compteur */
+.kiosk-profile-pill {
+    display: none;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.45rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 1rem;
+    cursor: pointer;
+    font-size: 0.75rem;
+    color: var(--text-primary);
+    transition: background 0.2s;
+    user-select: none;
+}
+
+.kiosk-profile-pill:active {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.kiosk-profile-avatar {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    color: #fff;
+    font-size: 0.65rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #3b82f6;
+}
+
+.kiosk-profile-name {
+    font-weight: 600;
+    max-width: 80px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* OVERLAY SÉLECTION DE PROFIL : "QUI PÉDALE AUJOURD'HUI ?" */
+.profile-picker-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.88);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    z-index: 2000;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem 1rem;
+    animation: fadeIn 0.25s ease;
+}
+
+.profile-picker-modal {
+    background: #090e17;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    border-radius: 1.25rem;
+    width: 100%;
+    max-width: 440px;
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+.profile-picker-header {
+    text-align: center;
+    margin-bottom: 1.25rem;
+}
+
+.profile-picker-title {
+    font-size: 1.4rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    margin-bottom: 0.25rem;
+}
+
+.profile-picker-sub {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.picker-profiles-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.65rem;
+    margin-bottom: 1.25rem;
+}
+
+.profile-card {
+    background: #0d1424;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.85rem;
+    padding: 0.85rem 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    position: relative;
+}
+
+.profile-card:hover, .profile-card:active {
+    background: #141f38;
+    border-color: rgba(59, 130, 246, 0.4);
+    transform: translateY(-1px);
+}
+
+.profile-card.active {
+    border-color: var(--accent);
+    background: rgba(59, 130, 246, 0.12);
+}
+
+.profile-avatar {
+    width: 46px;
+    height: 46px;
+    border-radius: 50%;
+    color: #ffffff;
+    font-size: 1.05rem;
+    font-weight: 800;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+    flex-shrink: 0;
+}
+
+.profile-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.profile-name {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 0.2rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.profile-ftp {
+    font-size: 0.8rem;
+    color: var(--text-secondary);
+}
+
+.profile-ftp strong {
+    color: var(--accent);
+}
+
+.profile-active-tag {
+    font-size: 0.65rem;
+    font-weight: 700;
+    padding: 0.2rem 0.5rem;
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--success);
+    border: 1px solid rgba(16, 185, 129, 0.3);
+    border-radius: 0.4rem;
+    text-transform: uppercase;
+}
+
+/* Bandeau de migration historique */
+.legacy-banner {
+    padding: 0.85rem 1rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    background: rgba(59, 130, 246, 0.1);
+    border-left: 4px solid var(--accent);
+}
+
+/* Statistiques personnelles agrégées */
+.personal-stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(85px, 1fr));
+    gap: 0.45rem;
+    margin-bottom: 1.25rem;
+}
+
+.personal-stat-card {
+    background: #080c16;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 0.65rem;
+    padding: 0.5rem 0.35rem;
+    text-align: center;
+}
+
+.personal-stat-value {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+.personal-stat-label {
+    font-size: 0.65rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin-top: 0.15rem;
+}

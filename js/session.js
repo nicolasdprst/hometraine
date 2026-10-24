@@ -120,6 +120,8 @@ function renderChartData() {
 // --- DÉBUT DE SESSION ---
 function startSession() {
     state.isRecording = true;
+    state.currentSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+    state.sessionProfileId = (window.profilesManager && window.profilesManager.activeProfile) ? window.profilesManager.activeProfile.id : 'default-profile';
     state.startTime = new Date();
     state.pedalingTime = 0; 
     state.totalDistanceM = 0; 
@@ -276,10 +278,61 @@ function tick() {
     state.sessionData.watts.push(state.currentWatts);
     state.sessionData.speed.push(state.currentSpeed);
 
+    // Sauvegarde locale intermédiaire toutes les 30s pour limiter les pertes en cas d'arrêt accidentel
+    if (state.pedalingTime > 0 && state.pedalingTime % 30 === 0) {
+        try {
+            localStorage.setItem('cyclodash_active_session_backup', JSON.stringify({
+                id: state.currentSessionId,
+                profile_id: state.sessionProfileId,
+                startTime: state.startTime,
+                pedalingTime: state.pedalingTime,
+                totalDistanceM: state.totalDistanceM,
+                sumWatts: state.sumWatts,
+                sumSpeed: state.sumSpeed,
+                maxWatts: state.maxWatts,
+                maxSpeed: state.maxSpeed,
+                sessionData: state.sessionData
+            }));
+        } catch(e) {}
+    }
+
     // OPTIMISATION PERFORMANCE :
     // On ne recalcule et ne rafraîchit Chart.js QUE si l'onglet Dashboard est visible !
     if (state.currentTab === 'dashboard') {
         renderChartData();
+    }
+}
+
+// Vérification au démarrage d'une éventuelle séance interrompue par crash/batterie
+function checkInterruptedSession() {
+    try {
+        const backupRaw = localStorage.getItem('cyclodash_active_session_backup');
+        if (!backupRaw) return;
+        const b = JSON.parse(backupRaw);
+        if (b && b.pedalingTime > 30) {
+            const dateStr = b.startTime ? new Date(b.startTime).toLocaleString() : 'récente';
+            if (confirm(`Une séance interrompue (${formatTime(b.pedalingTime)}) du ${dateStr} a été retrouvée.\nVoulez-vous la restaurer et l'enregistrer dans votre historique ?`)) {
+                state.currentSessionId = b.id;
+                state.sessionProfileId = b.profile_id;
+                state.startTime = new Date(b.startTime || Date.now());
+                state.stopTime = new Date();
+                state.pedalingTime = b.pedalingTime;
+                state.totalDistanceM = b.totalDistanceM || 0;
+                state.sumWatts = b.sumWatts || 0;
+                state.sumSpeed = b.sumSpeed || 0;
+                state.maxWatts = b.maxWatts || 0;
+                state.maxSpeed = b.maxSpeed || 0;
+                state.sessionData = b.sessionData || { time: [], watts: [], speed: [] };
+
+                if (window.saveSessionToHistory) {
+                    window.saveSessionToHistory();
+                }
+            } else {
+                localStorage.removeItem('cyclodash_active_session_backup');
+            }
+        }
+    } catch(e) {
+        console.warn("Erreur vérification séance interrompue:", e);
     }
 }
 
@@ -330,3 +383,4 @@ window.requestWakeLock = requestWakeLock;
 window.releaseWakeLock = releaseWakeLock;
 window.updateWakeLockUI = updateWakeLockUI;
 window.updateKioskWorkoutBanner = updateKioskWorkoutBanner;
+window.checkInterruptedSession = checkInterruptedSession;
