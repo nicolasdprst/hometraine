@@ -350,7 +350,7 @@ function tick() {
     if (state.elapsedTime - lastBackupElapsed >= 30) {
         lastBackupElapsed = state.elapsedTime;
         try {
-            localStorage.setItem('cyclodash_active_session_backup', JSON.stringify({
+            const stored = localDataStore.setJSON('active_session_backup', {
                 id: state.currentSessionId,
                 profile_id: state.sessionProfileId,
                 startTime: state.startTime,
@@ -366,7 +366,8 @@ function tick() {
                 maxWatts: state.maxWatts,
                 maxSpeed: state.maxSpeed,
                 sessionData: state.sessionData
-            }));
+            });
+            if (!stored) throw new Error('quota local dépassé');
         } catch (error) {
             debugLog(`Sauvegarde de reprise impossible : ${error.message}`, 'warn');
         }
@@ -379,18 +380,16 @@ function tick() {
     }
 }
 
-// Restauration facultative d'une séance interrompue (crash, batterie, fermeture).
-function checkInterruptedSession() {
+// Vérification au démarrage d'une éventuelle séance interrompue par crash/batterie
+async function checkInterruptedSession() {
     try {
-        const backupRaw = localStorage.getItem('cyclodash_active_session_backup');
-        if (!backupRaw) return;
-        const backup = JSON.parse(backupRaw);
+        const backup = localDataStore.getJSON('active_session_backup', null);
         if (!backup || (backup.elapsedTime || backup.pedalingTime || 0) <= 30) return;
 
         const duration = backup.elapsedTime || backup.pedalingTime;
         const dateStr = backup.startTime ? new Date(backup.startTime).toLocaleString() : 'récente';
         if (!confirm(`Une séance interrompue (${formatTime(duration)}) du ${dateStr} a été retrouvée.\nVoulez-vous la restaurer et l'enregistrer dans votre historique ?`)) {
-            localStorage.removeItem('cyclodash_active_session_backup');
+            localDataStore.remove('active_session_backup');
             return;
         }
 
@@ -418,7 +417,9 @@ function checkInterruptedSession() {
             speed: Array.isArray(data.speed) ? data.speed : [],
             distance: Array.isArray(data.distance) ? data.distance : []
         };
-        saveSessionToHistory();
+        if (window.saveSessionToHistory) {
+            await window.saveSessionToHistory();
+        }
     } catch (error) {
         console.warn('Erreur vérification séance interrompue:', error);
     }

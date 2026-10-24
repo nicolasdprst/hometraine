@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cyclodash-v17-profiles-stability';
+const CACHE_NAME = 'cyclodash-v18-supabase-stability';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -12,6 +12,7 @@ const ASSETS = [
   './js/vendor/chart.umd.js',
   './js/state.js',
   './js/supabase.js',
+  './js/storage.js',
   './js/profiles.js',
   './js/bluetooth.js',
   './js/workout.js',
@@ -69,7 +70,6 @@ self.addEventListener('fetch', (e) => {
     e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
     return;
   }
-
   // Les ressources d'une version proviennent toutes du même cache préchargé,
   // ce qui évite de mélanger du JavaScript de versions incompatibles.
   e.respondWith(caches.match(e.request).then((cached) => cached || fetch(e.request)));

@@ -3,6 +3,7 @@
 let waitingWorker = null;
 
 window.addEventListener('DOMContentLoaded', async () => {
+    if (window.supabaseClient) await window.supabaseClient.ready();
     // 1. Boutons Dashboard (conservation stricte des IDs existants)
     const connectBtn = document.getElementById('connectBtn');
     const demoBtn = document.getElementById('demoBtn');
@@ -204,6 +205,10 @@ function updateSupabaseAccountUI() {
 }
 
 window.handleSupabaseLogin = async function() {
+    if (state.isRecording) {
+        alert('Terminez la séance avant de changer de compte Supabase.');
+        return;
+    }
     const email = document.getElementById('supabaseEmailInput').value;
     const password = document.getElementById('supabasePasswordInput').value;
     if (!email || !password) {
@@ -213,16 +218,20 @@ window.handleSupabaseLogin = async function() {
 
     try {
         await window.supabaseClient.signIn(email, password);
+        if (window.profilesManager) await window.profilesManager.handleAccountChange(true);
         alert("Connexion Supabase réussie !");
         updateSupabaseAccountUI();
-        if (window.profilesManager) await window.profilesManager.syncFromSupabase();
-        if (window.processSyncQueue) window.processSyncQueue();
+        if (window.processSyncQueue) await window.processSyncQueue();
     } catch (err) {
         alert(`Erreur de connexion : ${err.message}`);
     }
 };
 
 window.handleSupabaseSignup = async function() {
+    if (state.isRecording) {
+        alert('Terminez la séance avant de créer un compte Supabase.');
+        return;
+    }
     const email = document.getElementById('supabaseEmailInput').value;
     const password = document.getElementById('supabasePasswordInput').value;
     if (!email || !password) {
@@ -231,18 +240,25 @@ window.handleSupabaseSignup = async function() {
     }
 
     try {
-        await window.supabaseClient.signUp(email, password);
-        alert("Compte d'installation créé avec succès !");
+        const result = await window.supabaseClient.signUp(email, password);
+        alert(result && result.access_token
+            ? "Compte d'installation créé et connecté !"
+            : "Compte créé. Consultez votre e-mail pour confirmer l’inscription avant de vous connecter.");
         updateSupabaseAccountUI();
-        if (window.profilesManager) await window.profilesManager.syncFromSupabase();
+        if (result && result.access_token && window.profilesManager) await window.profilesManager.handleAccountChange(true);
     } catch (err) {
         alert(`Erreur d'inscription : ${err.message}`);
     }
 };
 
 window.handleSupabaseLogout = async function() {
+    if (state.isRecording) {
+        alert('Terminez la séance avant de vous déconnecter.');
+        return;
+    }
     if (confirm("Voulez-vous déconnecter ce compte d'installation Supabase ? (Vos profils locaux resteront disponibles)")) {
         await window.supabaseClient.signOut();
+        if (window.profilesManager) await window.profilesManager.handleAccountChange(false);
         updateSupabaseAccountUI();
         alert("Déconnecté.");
     }

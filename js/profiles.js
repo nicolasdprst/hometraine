@@ -1,5 +1,24 @@
 // --- GESTION MULTI-PROFILS POUR CYCLODASH ---
 
+const PROFILE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
+
+function createCycloDashId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+    const bytes = new Uint8Array(16);
+    if (typeof crypto !== 'undefined' && crypto.getRandomValues) crypto.getRandomValues(bytes);
+    else for (let i = 0; i < 16; i++) bytes[i] = Math.floor(Math.random() * 256);
+    bytes[6] = (bytes[6] & 15) | 64;
+    bytes[8] = (bytes[8] & 63) | 128;
+    const hex = Array.from(bytes, b => b.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+function validProfileColor(color) {
+    return PROFILE_COLORS.includes(color) ? color : PROFILE_COLORS[0];
+}
+
+window.createCycloDashId = createCycloDashId;
+
 const profilesManager = {
     profiles: [],
     activeProfile: null,
@@ -25,7 +44,10 @@ const profilesManager = {
                 ftp_watts: state.ftp || 200,
                 avatar_color: '#3b82f6',
                 is_archived: false,
-                created_at: new Date().toISOString()
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString(),
+                owner_id: localDataStore.getOwnerId() === 'anonymous' ? null : localDataStore.getOwnerId(),
+                sync_status: 'pending'
             };
             this.profiles.push(defaultProfile);
             this.saveLocalProfiles();
@@ -35,7 +57,7 @@ const profilesManager = {
         }
 
         // Restaurer le profil précédemment actif
-        const savedActiveId = localStorage.getItem('cyclodash_active_profile_id');
+        const savedActiveId = localDataStore.getJSON('active_profile_id', null);
         let selected = this.profiles.find(p => p.id === savedActiveId && !p.is_archived);
         if (!selected && this.profiles.length > 0) {
             selected = this.profiles.find(p => !p.is_archived) || this.profiles[0];
@@ -51,39 +73,80 @@ const profilesManager = {
     },
 
     loadLocalProfiles() {
-        try {
-            const raw = localStorage.getItem('cyclodash_profiles');
-            if (raw) {
-                this.profiles = JSON.parse(raw);
-            }
-        } catch (e) {
-            console.error("Erreur lecture cyclodash_profiles:", e);
-            this.profiles = [];
-        }
+        const ownerId = localDataStore.getOwnerId();
+        this.profiles = localDataStore.getJSON('profiles', []).map(profile => ({
+            ...profile,
+            avatar_color: validProfileColor(profile.avatar_color),
+            owner_id: ownerId === 'anonymous' ? null : ownerId,
+            sync_status: profile.sync_status || 'pending',
+            updated_at: profile.updated_at || profile.created_at || new Date(0).toISOString()
+        }));
     },
 
     saveLocalProfiles() {
-        try {
-            localStorage.setItem('cyclodash_profiles', JSON.stringify(this.profiles));
-        } catch (e) {
-            console.error("Erreur écriture cyclodash_profiles:", e);
-        }
+        if (!localDataStore.setJSON('profiles', this.profiles)) throw new Error('Stockage local des profils saturé');
     },
 
     async syncFromSupabase() {
         if (!window.supabaseClient || !window.supabaseClient.isAuthenticated()) return;
+        const ownerId = window.supabaseClient.getUser().id;
         const remoteProfiles = await window.supabaseClient.fetchProfiles();
-        if (Array.isArray(remoteProfiles) && remoteProfiles.length > 0) {
-            // Fusionner avec les profils locaux (les distants priment s'ils existent)
-            const map = new Map();
-            remoteProfiles.forEach(p => map.set(p.id, p));
-            this.profiles.forEach(p => {
-                if (!map.has(p.id)) map.set(p.id, p);
-            });
-            this.profiles = Array.from(map.values());
-            this.saveLocalProfiles();
-            this.renderProfilesListInSettings();
+        const remoteMap = new Map((remoteProfiles || []).map(profile => [profile.id, profile]));
+        const reconciled = [];
+
+        for (const local of this.profiles) {
+            if (local.owner_id && local.owner_id !== ownerId) continue;
+            const remote = remoteMap.get(local.id);
+            try {
+                if (!remote) {
+                    const created = await window.supabaseClient.createProfile(local);
+                    reconciled.push({ ...(created || local), owner_id: ownerId, sync_status: 'synced' });
+                } else {
+                    const localTime = Date.parse(local.updated_at || 0) || 0;
+                    const remoteTime = Date.parse(remote.updated_at || 0) || 0;
+                    if (local.sync_status !== 'synced' && localTime > remoteTime) {
+                        const updated = await window.supabaseClient.updateProfile(local.id, local);
+                        reconciled.push({ ...(updated || local), owner_id: ownerId, sync_status: 'synced' });
+                    } else {
+                        reconciled.push({ ...remote, owner_id: ownerId, sync_status: 'synced' });
+                    }
+                }
+            } catch (error) {
+                local.sync_status = 'pending';
+                local.sync_error = error.message;
+                reconciled.push(local);
+            }
+            remoteMap.delete(local.id);
         }
+        remoteMap.forEach(remote => reconciled.push({ ...remote, owner_id: ownerId, sync_status: 'synced' }));
+        this.profiles = reconciled;
+        this.saveLocalProfiles();
+        this.renderProfilesListInSettings();
+    },
+
+    async handleAccountChange(offerLegacyMigration = false) {
+        this.profiles = [];
+        this.activeProfile = null;
+        state.activeProfile = null;
+        const hasImportable = localDataStore.hasLegacyData() || localDataStore.hasAnonymousData();
+        if (offerLegacyMigration && hasImportable && confirm('Importer volontairement les données locales anonymes ou anciennes dans ce compte ?')) {
+            const migrated = (!localDataStore.hasLegacyData() || localDataStore.migrateLegacyToCurrentAccount())
+                && (!localDataStore.hasAnonymousData() || localDataStore.migrateAnonymousToCurrentAccount());
+            if (!migrated) {
+                alert('Certaines données locales n’ont pas pu être importées. Les originaux sont conservés.');
+            } else {
+                const sessions = localDataStore.getJSON('sessions', []);
+                for (const session of sessions) {
+                    const raw = localStorage.getItem(`cyclodash_raw_${session.id}`);
+                    try {
+                        const anonymousData = await cycloDb.get('session-data', session.id, 'anonymous').catch(() => null);
+                        if (anonymousData) await cycloDb.put('session-data', session.id, anonymousData);
+                        else if (raw) await cycloDb.put('session-data', session.id, JSON.parse(raw));
+                    } catch (error) { console.warn(`Mesures historiques non migrées (${session.id})`, error); }
+                }
+            }
+        }
+        await this.init();
     },
 
     // Appliquer un profil actif
@@ -95,7 +158,7 @@ const profilesManager = {
 
         this.activeProfile = profile;
         state.activeProfile = profile;
-        localStorage.setItem('cyclodash_active_profile_id', profile.id);
+        localDataStore.setJSON('active_profile_id', profile.id);
 
         // Appliquer la FTP du profil
         state.ftp = profile.ftp_watts || 200;
@@ -186,16 +249,26 @@ const profilesManager = {
                 this.applyProfile(p, true);
             };
 
-            card.innerHTML = `
-                <div class="profile-avatar" style="background-color: ${p.avatar_color || '#3b82f6'};">
-                    ${this.getInitials(p.display_name)}
-                </div>
-                <div class="profile-info">
-                    <div class="profile-name">${p.display_name}</div>
-                    <div class="profile-ftp">⚡ FTP : <strong>${p.ftp_watts || 200} W</strong></div>
-                </div>
-                ${this.activeProfile && this.activeProfile.id === p.id ? '<span class="profile-active-tag">Actif</span>' : ''}
-            `;
+            const avatar = document.createElement('div');
+            avatar.className = 'profile-avatar';
+            avatar.style.backgroundColor = validProfileColor(p.avatar_color);
+            avatar.textContent = this.getInitials(p.display_name);
+            const info = document.createElement('div');
+            info.className = 'profile-info';
+            const name = document.createElement('div');
+            name.className = 'profile-name';
+            name.textContent = p.display_name;
+            const ftp = document.createElement('div');
+            ftp.className = 'profile-ftp';
+            ftp.textContent = `⚡ FTP : ${p.ftp_watts || 200} W`;
+            info.append(name, ftp);
+            card.append(avatar, info);
+            if (this.activeProfile && this.activeProfile.id === p.id) {
+                const active = document.createElement('span');
+                active.className = 'profile-active-tag';
+                active.textContent = 'Actif';
+                card.appendChild(active);
+            }
             container.appendChild(card);
         });
     },
@@ -208,9 +281,12 @@ const profilesManager = {
             id: createCycloDashId(),
             display_name: name.trim(),
             ftp_watts: parseInt(ftp) || 200,
-            avatar_color: color || '#3b82f6',
+            avatar_color: validProfileColor(color),
             is_archived: false,
-            created_at: new Date().toISOString()
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+            owner_id: localDataStore.getOwnerId() === 'anonymous' ? null : localDataStore.getOwnerId(),
+            sync_status: 'pending'
         };
 
         this.profiles.push(newProfile);
@@ -220,7 +296,8 @@ const profilesManager = {
             try {
                 const remote = await window.supabaseClient.createProfile(newProfile);
                 if (remote && remote.id) {
-                    newProfile.id = remote.id;
+                    newProfile.owner_id = window.supabaseClient.getUser().id;
+                    newProfile.sync_status = 'synced';
                     this.saveLocalProfiles();
                 }
             } catch (err) {
@@ -239,14 +316,18 @@ const profilesManager = {
 
         if (updates.display_name) p.display_name = updates.display_name.trim();
         if (updates.ftp_watts) p.ftp_watts = parseInt(updates.ftp_watts) || 200;
-        if (updates.avatar_color) p.avatar_color = updates.avatar_color;
+        if (updates.avatar_color) p.avatar_color = validProfileColor(updates.avatar_color);
         if (typeof updates.is_archived === 'boolean') p.is_archived = updates.is_archived;
+        p.updated_at = new Date().toISOString();
+        p.sync_status = 'pending';
 
         this.saveLocalProfiles();
 
         if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
             try {
                 await window.supabaseClient.updateProfile(id, updates);
+                p.sync_status = 'synced';
+                this.saveLocalProfiles();
             } catch (err) {
                 console.warn("Mise à jour profil Supabase différée:", err);
             }
@@ -273,34 +354,27 @@ const profilesManager = {
         }
     },
 
+    async restoreProfile(id) {
+        await this.updateProfile(id, { is_archived: false });
+    },
+
     async deleteProfile(id) {
         const p = this.profiles.find(item => item.id === id);
         if (!p) return;
 
-        // Compter les séances associées dans l'historique
-        let sessionCount = 0;
-        try {
-            const rawHist = localStorage.getItem('cyclodash_sessions_v2') || '[]';
-            const allSessions = JSON.parse(rawHist);
-            sessionCount = allSessions.filter(s => s.profile_id === id).length;
-        } catch(e) {}
+        const localSessions = localDataStore.getJSON('sessions', []).filter(session => session.profile_id === id).length;
+        if (!window.supabaseClient || !window.supabaseClient.isAuthenticated()) {
+            throw new Error('Suppression définitive impossible hors ligne. Utilisez l’archivage.');
+        }
+        const remoteSessions = await window.supabaseClient.countSessionsForProfile(id);
+        const sessionCount = Math.max(localSessions, remoteSessions);
+        if (sessionCount > 0) throw new Error(`Ce profil possède ${sessionCount} séance(s). Archivez-le pour préserver son historique.`);
+        if (!confirm(`Supprimer définitivement le profil "${p.display_name}" sans séance ? Cette action est irréversible.`)) return;
 
-        const confirmMsg = sessionCount > 0
-            ? `Attention : le profil "${p.display_name}" possède ${sessionCount} séance(s) enregistrée(s).\n\nVoulez-vous vraiment supprimer définitivement ce profil et son historique ?`
-            : `Voulez-vous supprimer définitivement le profil "${p.display_name}" ?`;
-
-        if (!confirm(confirmMsg)) return;
-
+        // La suppression locale n'arrive qu'après confirmation serveur.
+        await window.supabaseClient.deleteProfile(id);
         this.profiles = this.profiles.filter(item => item.id !== id);
         this.saveLocalProfiles();
-
-        if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
-            try {
-                await window.supabaseClient.deleteProfile(id);
-            } catch (err) {
-                console.warn("Suppression profil Supabase différée:", err);
-            }
-        }
 
         if (this.activeProfile && this.activeProfile.id === id) {
             const next = this.profiles.find(item => !item.is_archived);
@@ -325,26 +399,35 @@ const profilesManager = {
             row.style.justifyContent = 'space-between';
             row.style.gap = '0.75rem';
 
-            row.innerHTML = `
-                <div style="display: flex; align-items: center; gap: 0.6rem;">
-                    <div style="width: 34px; height: 34px; border-radius: 50%; background-color: ${p.avatar_color || '#3b82f6'}; color: #fff; font-weight: 700; display: flex; align-items: center; justify-content: center; font-size: 0.8rem;">
-                        ${this.getInitials(p.display_name)}
-                    </div>
-                    <div>
-                        <div style="font-weight: 600; color: var(--text-primary); font-size: 0.95rem;">
-                            ${p.display_name} ${p.is_archived ? '<em style="font-size:0.75rem; color:var(--text-secondary);">(archivé)</em>' : ''}
-                        </div>
-                        <div style="font-size: 0.8rem; color: var(--text-secondary);">
-                            ⚡ FTP : ${p.ftp_watts || 200} W
-                        </div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 0.35rem;">
-                    <button class="btn btn-sm btn-primary" onclick="profilesManager.showProfileForm('${p.id}')">✏️ Modifier</button>
-                    ${!p.is_archived ? `<button class="btn btn-sm btn-secondary" onclick="profilesManager.archiveProfile('${p.id}')">📦 Archiver</button>` : ''}
-                    <button class="btn btn-sm btn-danger" onclick="profilesManager.deleteProfile('${p.id}')">🗑️</button>
-                </div>
-            `;
+            const identity = document.createElement('div');
+            identity.style.cssText = 'display:flex;align-items:center;gap:0.6rem';
+            const avatar = document.createElement('div');
+            avatar.style.cssText = `width:34px;height:34px;border-radius:50%;background-color:${validProfileColor(p.avatar_color)};color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:0.8rem`;
+            avatar.textContent = this.getInitials(p.display_name);
+            const labels = document.createElement('div');
+            const name = document.createElement('div');
+            name.style.cssText = 'font-weight:600;color:var(--text-primary);font-size:0.95rem';
+            name.textContent = p.display_name + (p.is_archived ? ' (archivé)' : '');
+            const ftp = document.createElement('div');
+            ftp.style.cssText = 'font-size:0.8rem;color:var(--text-secondary)';
+            ftp.textContent = `⚡ FTP : ${p.ftp_watts || 200} W · ${p.sync_status === 'synced' ? '☁️' : '⏳'}`;
+            labels.append(name, ftp);
+            identity.append(avatar, labels);
+
+            const actions = document.createElement('div');
+            actions.style.cssText = 'display:flex;gap:0.35rem';
+            const addButton = (label, classes, handler) => {
+                const button = document.createElement('button');
+                button.className = classes;
+                button.textContent = label;
+                button.onclick = () => Promise.resolve(handler()).catch(error => alert(error.message));
+                actions.appendChild(button);
+            };
+            addButton('✏️ Modifier', 'btn btn-sm btn-primary', () => this.showProfileForm(p.id));
+            if (p.is_archived) addButton('♻️ Restaurer', 'btn btn-sm btn-secondary', () => this.restoreProfile(p.id));
+            else addButton('📦 Archiver', 'btn btn-sm btn-secondary', () => this.archiveProfile(p.id));
+            addButton('🗑️', 'btn btn-sm btn-danger', () => this.deleteProfile(p.id));
+            row.append(identity, actions);
             listEl.appendChild(row);
         });
     },

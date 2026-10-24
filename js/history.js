@@ -1,16 +1,30 @@
 // --- GESTION DE L'HISTORIQUE INDIVIDUEL, EXPORT TCX & SYNCHRONISATION ---
 
+let syncQueuePromise = null;
+
+function createLegacySessionId(profileId, dateIso) {
+    const input = `${profileId}|${dateIso}`;
+    let hash = 2166136261;
+    for (let i = 0; i < input.length; i++) {
+        hash ^= input.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    const block = (hash >>> 0).toString(16).padStart(8, '0');
+    return `${block}-${block.slice(0, 4)}-5${block.slice(1, 4)}-8${block.slice(1, 4)}-${block}${block.slice(0, 4)}`;
+}
+
 // Sauvegarde principale appelée à la fin d'une séance (dans stopSession)
 async function saveSessionToHistory() {
     if (state.pedalingTime < 10) {
         alert("Session trop courte (< 10s), non sauvegardée.");
         // Nettoyage de la sauvegarde temporaire
-        localStorage.removeItem('cyclodash_active_session_backup');
+        localDataStore.remove('active_session_backup');
         return;
     }
 
     const activeProfile = window.profilesManager ? window.profilesManager.activeProfile : null;
-    const profileId = state.sessionProfileId || (activeProfile ? activeProfile.id : 'default-profile');
+    const profileId = state.sessionProfileId || (activeProfile ? activeProfile.id : null);
+    if (!profileId) throw new Error('Aucun profil associé à la séance');
     const sessionId = state.currentSessionId || createCycloDashId();
 
     const avgWatts = state.powerMeasureTime > 0 ? Math.round(state.sumWatts / state.powerMeasureTime) : 0;
@@ -37,7 +51,8 @@ async function saveSessionToHistory() {
         total_work_kj: totalWorkKJ,
         energy_kcal: energyKcal,
         workout_name: (state.activeWorkout && state.activeWorkout.name) ? state.activeWorkout.name : 'Roule Libre',
-        synced: false
+        synced: false,
+        sync_status: 'pending'
     };
 
     const detailedData = {
@@ -53,23 +68,29 @@ async function saveSessionToHistory() {
     // Éviter tout doublon éventuel
     sessions = sessions.filter(s => s.id !== sessionId);
     sessions.unshift(sessionSummary);
-    // Limite raisonnable en cache local
-    if (sessions.length > 100) sessions.pop();
-    saveStoredSessions(sessions);
+    // Ne jamais évincer arbitrairement une séance, surtout si elle attend sa synchronisation.
+    if (!saveStoredSessions(sessions)) {
+        alert('La séance n’a pas pu être enregistrée localement. Libérez de l’espace puis réessayez.');
+        return;
+    }
 
     // 2. Sauvegarde locale des séries temporelles détaillées pour export TCX ultérieur
     try {
-        localStorage.setItem(`cyclodash_raw_${sessionId}`, JSON.stringify(detailedData));
+        await cycloDb.put('session-data', sessionId, detailedData);
     } catch (e) {
-        console.warn("Stockage local séries temporelles saturé:", e);
+        alert('Le résumé est sauvegardé, mais les mesures détaillées n’ont pas pu être stockées. Ne fermez pas l’application avant la synchronisation.');
+        console.warn("Stockage IndexedDB des séries impossible:", e);
+        enqueueSync(sessionId);
+        return;
     }
 
-    // 3. Suppression du backup temporaire
-    localStorage.removeItem('cyclodash_active_session_backup');
+    // La sauvegarde de secours n'est supprimée qu'après les deux persistances.
+    localDataStore.remove('active_session_backup');
 
     // 4. Synchronisation Supabase en arrière-plan
     if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
         try {
+            await window.profilesManager.syncFromSupabase();
             await window.supabaseClient.saveSession(sessionSummary, detailedData);
             sessionSummary.synced = true;
             saveStoredSessions(sessions);
@@ -92,67 +113,75 @@ async function saveSessionToHistory() {
 
 // Récupérer les séances depuis le stockage local
 function getStoredSessions() {
-    try {
-        const raw = localStorage.getItem('cyclodash_sessions_v2');
-        return raw ? JSON.parse(raw) : [];
-    } catch (e) {
-        console.error("Erreur lecture cyclodash_sessions_v2:", e);
-        return [];
-    }
+    return localDataStore.getJSON('sessions', []);
 }
 
 function saveStoredSessions(sessions) {
-    try {
-        localStorage.setItem('cyclodash_sessions_v2', JSON.stringify(sessions));
-    } catch (e) {
-        console.error("Erreur écriture cyclodash_sessions_v2:", e);
-    }
+    return localDataStore.setJSON('sessions', sessions);
 }
 
 // Queue de synchronisation hors-ligne
 function enqueueSync(sessionId) {
     try {
-        let queue = JSON.parse(localStorage.getItem('cyclodash_sync_queue') || '[]');
+        let queue = localDataStore.getJSON('sync_queue', []);
         if (!queue.includes(sessionId)) queue.push(sessionId);
-        localStorage.setItem('cyclodash_sync_queue', JSON.stringify(queue));
-    } catch(e) {}
+        if (!localDataStore.setJSON('sync_queue', queue)) throw new Error('File de synchronisation non persistée');
+        return true;
+    } catch(e) {
+        console.error(e);
+        alert('Impossible de mémoriser la synchronisation en attente. Ne supprimez pas les données locales.');
+        return false;
+    }
 }
 
 async function processSyncQueue() {
     if (!window.supabaseClient || !window.supabaseClient.isAuthenticated()) return;
-    try {
-        let queue = JSON.parse(localStorage.getItem('cyclodash_sync_queue') || '[]');
+    if (syncQueuePromise) return syncQueuePromise;
+    syncQueuePromise = (async () => {
+        await window.profilesManager.syncFromSupabase();
+        let queue = localDataStore.getJSON('sync_queue', []);
         if (queue.length === 0) return;
+        const retryState = localDataStore.getJSON('sync_retry', {});
 
         const sessions = getStoredSessions();
         const newQueue = [];
 
         for (const id of queue) {
+            if (retryState[id] && retryState[id].next_at > Date.now()) {
+                newQueue.push(id);
+                continue;
+            }
             const sess = sessions.find(s => s.id === id);
             if (!sess) continue;
 
             let detailed = null;
-            try {
-                const raw = localStorage.getItem(`cyclodash_raw_${id}`);
-                if (raw) detailed = JSON.parse(raw);
-            } catch(e) {}
+            try { detailed = await cycloDb.get('session-data', id); } catch (error) { console.warn(error); }
 
             try {
                 await window.supabaseClient.saveSession(sess, detailed);
                 sess.synced = true;
+                sess.sync_status = 'synced';
+                delete retryState[id];
                 console.log(`Séance ${id} synchronisée depuis la file d'attente.`);
             } catch (err) {
                 console.warn(`Échec synchronisation séance ${id}:`, err);
                 newQueue.push(id);
+                const attempts = ((retryState[id] && retryState[id].attempts) || 0) + 1;
+                retryState[id] = {
+                    attempts,
+                    next_at: Date.now() + Math.min(300000, Math.pow(2, attempts - 1) * 5000)
+                };
             }
         }
 
-        saveStoredSessions(sessions);
-        localStorage.setItem('cyclodash_sync_queue', JSON.stringify(newQueue));
+        if (!saveStoredSessions(sessions) || !localDataStore.setJSON('sync_queue', newQueue) || !localDataStore.setJSON('sync_retry', retryState)) {
+            throw new Error('État de synchronisation non persisté');
+        }
         renderHistory();
-    } catch (err) {
-        console.warn("Erreur processSyncQueue:", err);
-    }
+    })();
+    try { return await syncQueuePromise; }
+    catch (err) { console.warn("Erreur processSyncQueue:", err); }
+    finally { syncQueuePromise = null; }
 }
 
 // Écouteur de retour réseau pour vider la file
@@ -182,10 +211,11 @@ async function renderHistory() {
                 const map = new Map();
                 remoteSessions.forEach(s => {
                     s.synced = true;
+                    s.sync_status = 'synced';
                     map.set(s.id, s);
                 });
                 allSessions.forEach(s => {
-                    if (!map.has(s.id)) map.set(s.id, s);
+                    if (!map.has(s.id) || !s.synced || s.sync_status === 'pending') map.set(s.id, s);
                 });
                 allSessions = Array.from(map.values());
                 allSessions.sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
@@ -203,13 +233,16 @@ async function renderHistory() {
     renderPersonalStats(profileSessions);
 
     if (profileSessions.length === 0) {
-        list.innerHTML = `
-            <div style="padding: 2.5rem 1rem; text-align: center; color: var(--text-secondary);">
-                <div style="font-size: 2.2rem; margin-bottom: 0.5rem;">🚴</div>
-                <div style="font-weight: 600; font-size: 1.05rem; color: var(--text-primary);">Aucune activité pour ${activeProfile ? activeProfile.display_name : 'ce profil'}</div>
-                <p style="font-size: 0.85rem; margin-top: 0.35rem;">Démarrez une séance sur le Compteur pour enregistrer vos premiers tours de roue !</p>
-            </div>
-        `;
+        list.textContent = '';
+        const empty = document.createElement('div');
+        empty.style.cssText = 'padding:2.5rem 1rem;text-align:center;color:var(--text-secondary)';
+        const title = document.createElement('div');
+        title.style.cssText = 'font-weight:600;font-size:1.05rem;color:var(--text-primary)';
+        title.textContent = `🚴 Aucune activité pour ${activeProfile ? activeProfile.display_name : 'ce profil'}`;
+        const help = document.createElement('p');
+        help.textContent = 'Démarrez une séance sur le Compteur pour enregistrer vos premiers tours de roue !';
+        empty.append(title, help);
+        list.appendChild(empty);
         return;
     }
 
@@ -219,39 +252,39 @@ async function renderHistory() {
         const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + 
                         ' à ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-        const syncBadge = s.synced 
-            ? '<span title="Synchronisé avec Supabase" style="color: var(--success); font-size: 0.75rem;">☁️ Sync</span>'
-            : '<span title="En attente de synchronisation" style="color: var(--warning); font-size: 0.75rem;">⏳ Local</span>';
-
         const item = document.createElement('div');
         item.className = 'list-item history-item-card';
         item.style.marginBottom = '0.75rem';
 
-        item.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 0.5rem; width: 100%;">
-                <div style="flex: 1; min-width: 0;">
-                    <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem;">
-                        <span style="font-weight: 700; color: var(--text-primary); font-size: 0.95rem;">${s.workout_name || 'Roule Libre'}</span>
-                        ${syncBadge}
-                    </div>
-                    <div style="font-size: 0.78rem; color: var(--text-secondary); margin-bottom: 0.4rem;">
-                        📅 ${dateStr}
-                    </div>
-                    <div class="history-metrics-row" style="display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.85rem;">
-                        <span>⏱ <strong>${formatTime(s.duration_seconds || s.duration || 0)}</strong></span>
-                        <span>📏 <strong>${((s.distance_meters || s.distance || 0) / 1000).toFixed(2)} km</strong></span>
-                        <span>⚡ <strong>${s.avg_power_watts || s.avgWatts || 0} W</strong> moy ${s.max_power_watts ? `(${s.max_power_watts} max)` : ''}</span>
-                        <span>🚴 <strong>${s.avg_speed_kmh || s.avgSpeed || '0.0'} km/h</strong></span>
-                        ${s.total_work_kj ? `<span>🔥 <strong>${s.total_work_kj} kJ</strong></span>` : ''}
-                    </div>
-                </div>
-                <div style="flex-shrink: 0; align-self: center;">
-                    <button class="btn btn-sm btn-primary" onclick="exportTCXById('${s.id}')" title="Télécharger le fichier Strava TCX">
-                        📥 TCX
-                    </button>
-                </div>
-            </div>
-        `;
+        const content = document.createElement('div');
+        content.style.cssText = 'flex:1;min-width:0';
+        const title = document.createElement('div');
+        title.style.cssText = 'font-weight:700;color:var(--text-primary);font-size:0.95rem';
+        title.textContent = s.workout_name || 'Roule Libre';
+        const sync = document.createElement('span');
+        sync.style.cssText = `font-size:0.75rem;color:${s.synced ? 'var(--success)' : 'var(--warning)'}`;
+        sync.textContent = s.synced ? ' ☁️ Sync' : ' ⏳ Local';
+        title.appendChild(sync);
+        const date = document.createElement('div');
+        date.style.cssText = 'font-size:0.78rem;color:var(--text-secondary);margin:0.25rem 0 0.4rem';
+        date.textContent = `📅 ${dateStr}`;
+        const metrics = document.createElement('div');
+        metrics.className = 'history-metrics-row';
+        metrics.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.75rem;font-size:0.85rem';
+        const values = [
+            `⏱ ${formatTime(s.duration_seconds || s.duration || 0)}`,
+            `📏 ${((s.distance_meters || s.distance || 0) / 1000).toFixed(2)} km`,
+            `⚡ ${s.avg_power_watts || s.avgWatts || 0} W moy`,
+            `🚴 ${s.avg_speed_kmh || s.avgSpeed || '0.0'} km/h`
+        ];
+        if (s.total_work_kj) values.push(`🔥 ${s.total_work_kj} kJ`);
+        values.forEach(value => { const span = document.createElement('span'); span.textContent = value; metrics.appendChild(span); });
+        const button = document.createElement('button');
+        button.className = 'btn btn-sm btn-primary';
+        button.textContent = '📥 TCX';
+        button.onclick = () => exportTCXById(s.id);
+        content.append(title, date, metrics);
+        item.append(content, button);
         list.appendChild(item);
     });
 }
@@ -321,8 +354,7 @@ async function exportTCXById(sessionId) {
     // 1. Chercher d'abord les données détaillées en cache local
     let detailed = null;
     try {
-        const raw = localStorage.getItem(`cyclodash_raw_${sessionId}`);
-        if (raw) detailed = JSON.parse(raw);
+        detailed = await cycloDb.get('session-data', sessionId);
     } catch(e) {}
 
     // 2. Si non trouvées en local et connecté à Supabase, chercher sur Supabase session_data
@@ -417,7 +449,7 @@ function checkLegacyHistoryBanner() {
     const banner = document.getElementById('legacyMigrationBanner');
     if (!banner) return;
 
-    const migrated = localStorage.getItem('cyclodash_legacy_migrated') === 'true';
+    const migrated = localDataStore.getJSON('legacy_migrated', false) === true;
     if (migrated) {
         banner.style.display = 'none';
         return;
@@ -466,7 +498,7 @@ async function migrateLegacyHistory() {
             const dateIso = item.date ? new Date(item.date).toISOString() : new Date().toISOString();
             if (!existingDates.has(dateIso)) {
                 const migratedItem = {
-                    id: createCycloDashId(),
+                    id: createLegacySessionId(activeProfile.id, dateIso),
                     profile_id: activeProfile.id,
                     started_at: dateIso,
                     ended_at: dateIso,
@@ -479,17 +511,19 @@ async function migrateLegacyHistory() {
                     total_work_kj: Math.round((item.avgWatts || 0) * (item.duration || 0) / 1000),
                     energy_kcal: Math.round((item.avgWatts || 0) * (item.duration || 0) / 1000),
                     workout_name: 'Séance importée',
-                    synced: false
+                    synced: false,
+                    sync_status: 'pending'
                 };
                 sessions.push(migratedItem);
+                existingDates.add(dateIso);
+                enqueueSync(migratedItem.id);
                 importedCount++;
             }
         });
 
         sessions.sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
-        saveStoredSessions(sessions);
-
-        localStorage.setItem('cyclodash_legacy_migrated', 'true');
+        if (!saveStoredSessions(sessions)) throw new Error('Stockage local saturé, migration annulée');
+        if (!localDataStore.setJSON('legacy_migrated', true)) throw new Error('État de migration non persisté');
         alert(`${importedCount} séance(s) importée(s) avec succès dans le profil "${activeProfile.display_name}".`);
 
         checkLegacyHistoryBanner();
