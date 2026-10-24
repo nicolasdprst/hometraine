@@ -3,6 +3,15 @@
 let sessionTickInterval = null;
 let chartInstance = null;
 let wakeLockSentinel = null;
+let lastBackupElapsed = 0;
+
+function monotonicNow() {
+    return (window.performance && typeof window.performance.now === 'function') ? window.performance.now() : Date.now();
+}
+
+function isMeasurementFresh(timestamp, freshnessMs, now = Date.now()) {
+    return timestamp !== null && timestamp !== undefined && now - timestamp <= freshnessMs;
+}
 
 // --- SCREEN WAKE LOCK API ---
 async function requestWakeLock() {
@@ -119,11 +128,20 @@ function renderChartData() {
 
 // --- DÉBUT DE SESSION ---
 function startSession() {
+    if (state.isRecording || (!state.isDemoMode && !state.gattConnected)) return;
     state.isRecording = true;
-    state.currentSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+    state.sessionStatus = 'recording';
+    state.currentSessionId = createCycloDashId();
     state.sessionProfileId = (window.profilesManager && window.profilesManager.activeProfile) ? window.profilesManager.activeProfile.id : 'default-profile';
+    lastBackupElapsed = 0;
     state.startTime = new Date();
-    state.pedalingTime = 0; 
+    state.stopTime = null;
+    state.pedalingTime = 0;
+    state.elapsedTime = 0;
+    state.reliableDataTime = 0;
+    state.powerMeasureTime = 0;
+    state.speedMeasureTime = 0;
+    state.totalWorkJ = 0;
     state.totalDistanceM = 0; 
     state.sumWatts = 0; 
     state.sumSpeed = 0;
@@ -132,9 +150,10 @@ function startSession() {
     state.currentWorkoutStepIndex = 0; 
     state.workoutStepTimeElapsed = 0;
     
-    state.sessionData.time = []; 
-    state.sessionData.watts = []; 
-    state.sessionData.speed = [];
+    state.sessionData = { time: [], timestamps: [], watts: [], speed: [], distance: [] };
+    state.sessionStartMonotonic = monotonicNow();
+    state.lastTickMonotonic = state.sessionStartMonotonic;
+    state.lastTickWallTime = Date.now();
     
     // Réinitialisation des affichages Dashboard
     const resetFields = {
@@ -183,13 +202,25 @@ function startSession() {
 
 // --- FIN DE SESSION ---
 function stopSession() {
+    if (!state.isRecording) return;
+    tick();
     state.isRecording = false;
+    state.sessionStatus = 'stopped';
     state.stopTime = new Date();
-    if (sessionTickInterval) clearInterval(sessionTickInterval);
+    if (sessionTickInterval) {
+        clearInterval(sessionTickInterval);
+        sessionTickInterval = null;
+    }
     
     if (state.isDemoMode) {
         if (state.demoInterval) clearInterval(state.demoInterval);
+        state.demoInterval = null;
         state.isDemoMode = false;
+        state.currentWatts = 0;
+        state.currentSpeed = 0;
+        state.lastPowerDataTime = null;
+        state.lastSpeedDataTime = null;
+        updateBleStatusUI('disconnected');
     }
     
     // Libérer Screen Wake Lock
@@ -201,7 +232,10 @@ function stopSession() {
     const kwb = document.getElementById('kioskWorkoutBanner');
     if (kwb) kwb.classList.remove('active');
     
-    updateBleStatusUI('disconnected');
+    // La fin d'une séance ne modifie jamais l'état de la connexion GATT.
+    if (!state.isDemoMode && state.gattConnected) {
+        updateBleStatusUI('connected', state.bleDeviceName);
+    }
     syncControlsUI();
     
     saveSessionToHistory();
@@ -211,34 +245,62 @@ function stopSession() {
 function tick() {
     if (!state.isRecording) return;
 
-    // Détection de données périmées (Stale data timeout de 4 secondes)
-    if (!state.isDemoMode && state.device && state.lastBleDataTime) {
-        if (Date.now() - state.lastBleDataTime > 4000) {
+    const nowMonotonic = monotonicNow();
+    const nowWall = Date.now();
+    const rawElapsedMs = Math.max(0, nowMonotonic - state.lastTickMonotonic);
+    const integrationMs = Math.min(rawElapsedMs, config.MAX_INTEGRATION_STEP_MS);
+    const integrationSeconds = integrationMs / 1000;
+    state.elapsedTime = Math.max(0, (nowMonotonic - state.sessionStartMonotonic) / 1000);
+    state.lastTickMonotonic = nowMonotonic;
+    state.lastTickWallTime = nowWall;
+
+    const powerFresh = state.isDemoMode || (state.gattConnected && isMeasurementFresh(state.lastPowerDataTime, config.POWER_FRESHNESS_MS, nowWall));
+    const speedFresh = state.isDemoMode || (state.gattConnected && isMeasurementFresh(state.lastSpeedDataTime, config.SPEED_FRESHNESS_MS, nowWall));
+    const powerValue = powerFresh ? state.currentWatts : null;
+    const speedValue = speedFresh ? state.currentSpeed : null;
+
+    // Le statut global dépend de toute notification, sans masquer la fraîcheur
+    // indépendante de la puissance et de la vitesse.
+    if (!state.isDemoMode && state.gattConnected && state.lastBleNotificationTime) {
+        if (nowWall - state.lastBleNotificationTime > config.BLE_NOTIFICATION_STALE_MS) {
             if (state.bleStatus !== 'stale') {
                 updateBleStatusUI('stale', state.bleDeviceName);
             }
         }
     }
 
-    // Accumulation d'effort si mouvement détecté
-    if (state.currentWatts > 0 || state.currentSpeed > 0.5) {
-        state.pedalingTime += 1;
-        state.sumWatts += state.currentWatts;
-        state.sumSpeed += state.currentSpeed;
-        state.totalDistanceM += (state.currentSpeed / 3.6);
+    if (!powerFresh || !speedFresh) updateLiveMetrics();
+
+    // Les intégrales utilisent le temps monotone réellement écoulé, borné pour
+    // ne pas extrapoler une valeur à travers une suspension du navigateur.
+    if (powerFresh) {
+        state.sumWatts += powerValue * integrationSeconds;
+        state.totalWorkJ += powerValue * integrationSeconds;
+        state.powerMeasureTime += integrationSeconds;
+        state.maxWatts = Math.max(state.maxWatts, powerValue);
+    }
+    if (speedFresh) {
+        state.sumSpeed += speedValue * integrationSeconds;
+        state.totalDistanceM += (speedValue / 3.6) * integrationSeconds;
+        state.speedMeasureTime += integrationSeconds;
+        state.maxSpeed = Math.max(state.maxSpeed, speedValue);
+    }
+    if (powerFresh || speedFresh) {
+        state.reliableDataTime += integrationSeconds;
+    }
+    if ((powerFresh && powerValue > 0) || (speedFresh && speedValue > 0.5)) {
+        state.pedalingTime += integrationSeconds;
     }
 
-    if (state.pedalingTime > 0) {
-        state.maxWatts = Math.max(state.maxWatts, state.currentWatts);
-        state.maxSpeed = Math.max(state.maxSpeed, state.currentSpeed);
-        const avgW = Math.round(state.sumWatts / state.pedalingTime);
-        const avgS = (state.sumSpeed / state.pedalingTime).toFixed(1);
-        const distKm = (state.totalDistanceM / 1000).toFixed(2);
-        const timeStr = formatTime(state.pedalingTime);
-        const workKJ = Math.round(state.sumWatts / 1000);
-        const caloriesKcal = workKJ;
+    const avgW = state.powerMeasureTime > 0 ? Math.round(state.sumWatts / state.powerMeasureTime) : 0;
+    const avgS = state.speedMeasureTime > 0 ? (state.sumSpeed / state.speedMeasureTime).toFixed(1) : '0.0';
+    const distKm = (state.totalDistanceM / 1000).toFixed(2);
+    const timeStr = formatTime(state.elapsedTime);
+    const workKJ = Math.round(state.totalWorkJ / 1000);
+    const caloriesKcal = workKJ;
 
-        // Mise à jour Dashboard
+    if (state.currentTab === 'dashboard') {
+        // Mise à jour Dashboard uniquement lorsqu'il est visible.
         const avgWattsEl = document.getElementById('avgWattsVal');
         const avgSpeedEl = document.getElementById('avgSpeedVal');
         const durationEl = document.getElementById('durationVal');
@@ -257,7 +319,10 @@ function tick() {
         if (caloriesEl) caloriesEl.innerText = caloriesKcal;
         if (workEl) workEl.innerText = workKJ;
 
-        // Mise à jour Compteur Kiosk
+    }
+
+    if (state.currentTab === 'compteur') {
+        // Mise à jour Compteur uniquement lorsqu'il est visible.
         const kioskDurationEl = document.getElementById('kioskDurationVal');
         const kioskDistanceEl = document.getElementById('kioskDistanceVal');
         const kioskAvgWattsEl = document.getElementById('kioskAvgWattsVal');
@@ -269,31 +334,42 @@ function tick() {
         if (kioskAvgSpeedEl) kioskAvgSpeedEl.innerText = avgS;
     }
 
-    // Mise à jour de la télémétrie de workout
-    updateWorkoutBanner();
-    updateKioskWorkoutBanner();
+    // Le calcul de l'entraînement reste actif quel que soit l'onglet.
+    advanceWorkout(rawElapsedMs / 1000);
+    if (state.currentTab === 'dashboard') updateWorkoutBanner();
+    if (state.currentTab === 'compteur') updateKioskWorkoutBanner();
 
-    // Enregistrement inconditionnel des données brutes pour l'export TCX et l'historique
-    state.sessionData.time.push(state.pedalingTime);
-    state.sessionData.watts.push(state.currentWatts);
-    state.sessionData.speed.push(state.currentSpeed);
+    // null représente une mesure absente ; ce n'est jamais une fausse mesure à 0.
+    state.sessionData.time.push(state.elapsedTime);
+    state.sessionData.timestamps.push(new Date(nowWall).toISOString());
+    state.sessionData.watts.push(powerValue);
+    state.sessionData.speed.push(speedValue);
+    state.sessionData.distance.push(state.totalDistanceM);
 
-    // Sauvegarde locale intermédiaire toutes les 30s pour limiter les pertes en cas d'arrêt accidentel
-    if (state.pedalingTime > 0 && state.pedalingTime % 30 === 0) {
+    // Sauvegarde de reprise toutes les 30 secondes de temps réellement écoulé.
+    if (state.elapsedTime - lastBackupElapsed >= 30) {
+        lastBackupElapsed = state.elapsedTime;
         try {
             localStorage.setItem('cyclodash_active_session_backup', JSON.stringify({
                 id: state.currentSessionId,
                 profile_id: state.sessionProfileId,
                 startTime: state.startTime,
+                elapsedTime: state.elapsedTime,
                 pedalingTime: state.pedalingTime,
+                reliableDataTime: state.reliableDataTime,
+                powerMeasureTime: state.powerMeasureTime,
+                speedMeasureTime: state.speedMeasureTime,
                 totalDistanceM: state.totalDistanceM,
+                totalWorkJ: state.totalWorkJ,
                 sumWatts: state.sumWatts,
                 sumSpeed: state.sumSpeed,
                 maxWatts: state.maxWatts,
                 maxSpeed: state.maxSpeed,
                 sessionData: state.sessionData
             }));
-        } catch(e) {}
+        } catch (error) {
+            debugLog(`Sauvegarde de reprise impossible : ${error.message}`, 'warn');
+        }
     }
 
     // OPTIMISATION PERFORMANCE :
@@ -303,36 +379,48 @@ function tick() {
     }
 }
 
-// Vérification au démarrage d'une éventuelle séance interrompue par crash/batterie
+// Restauration facultative d'une séance interrompue (crash, batterie, fermeture).
 function checkInterruptedSession() {
     try {
         const backupRaw = localStorage.getItem('cyclodash_active_session_backup');
         if (!backupRaw) return;
-        const b = JSON.parse(backupRaw);
-        if (b && b.pedalingTime > 30) {
-            const dateStr = b.startTime ? new Date(b.startTime).toLocaleString() : 'récente';
-            if (confirm(`Une séance interrompue (${formatTime(b.pedalingTime)}) du ${dateStr} a été retrouvée.\nVoulez-vous la restaurer et l'enregistrer dans votre historique ?`)) {
-                state.currentSessionId = b.id;
-                state.sessionProfileId = b.profile_id;
-                state.startTime = new Date(b.startTime || Date.now());
-                state.stopTime = new Date();
-                state.pedalingTime = b.pedalingTime;
-                state.totalDistanceM = b.totalDistanceM || 0;
-                state.sumWatts = b.sumWatts || 0;
-                state.sumSpeed = b.sumSpeed || 0;
-                state.maxWatts = b.maxWatts || 0;
-                state.maxSpeed = b.maxSpeed || 0;
-                state.sessionData = b.sessionData || { time: [], watts: [], speed: [] };
+        const backup = JSON.parse(backupRaw);
+        if (!backup || (backup.elapsedTime || backup.pedalingTime || 0) <= 30) return;
 
-                if (window.saveSessionToHistory) {
-                    window.saveSessionToHistory();
-                }
-            } else {
-                localStorage.removeItem('cyclodash_active_session_backup');
-            }
+        const duration = backup.elapsedTime || backup.pedalingTime;
+        const dateStr = backup.startTime ? new Date(backup.startTime).toLocaleString() : 'récente';
+        if (!confirm(`Une séance interrompue (${formatTime(duration)}) du ${dateStr} a été retrouvée.\nVoulez-vous la restaurer et l'enregistrer dans votre historique ?`)) {
+            localStorage.removeItem('cyclodash_active_session_backup');
+            return;
         }
-    } catch(e) {
-        console.warn("Erreur vérification séance interrompue:", e);
+
+        state.currentSessionId = backup.id;
+        state.sessionProfileId = backup.profile_id;
+        state.startTime = new Date(backup.startTime || Date.now());
+        state.stopTime = new Date();
+        state.elapsedTime = duration;
+        state.pedalingTime = backup.pedalingTime || 0;
+        state.reliableDataTime = backup.reliableDataTime || 0;
+        state.powerMeasureTime = backup.powerMeasureTime || 0;
+        state.speedMeasureTime = backup.speedMeasureTime || 0;
+        state.totalDistanceM = backup.totalDistanceM || 0;
+        state.totalWorkJ = backup.totalWorkJ || backup.sumWatts || 0;
+        state.sumWatts = backup.sumWatts || 0;
+        state.sumSpeed = backup.sumSpeed || 0;
+        state.maxWatts = backup.maxWatts || 0;
+        state.maxSpeed = backup.maxSpeed || 0;
+
+        const data = backup.sessionData || {};
+        state.sessionData = {
+            time: Array.isArray(data.time) ? data.time : [],
+            timestamps: Array.isArray(data.timestamps) ? data.timestamps : [],
+            watts: Array.isArray(data.watts) ? data.watts : [],
+            speed: Array.isArray(data.speed) ? data.speed : [],
+            distance: Array.isArray(data.distance) ? data.distance : []
+        };
+        saveSessionToHistory();
+    } catch (error) {
+        console.warn('Erreur vérification séance interrompue:', error);
     }
 }
 
@@ -383,4 +471,5 @@ window.requestWakeLock = requestWakeLock;
 window.releaseWakeLock = releaseWakeLock;
 window.updateWakeLockUI = updateWakeLockUI;
 window.updateKioskWorkoutBanner = updateKioskWorkoutBanner;
+window.isMeasurementFresh = isMeasurementFresh;
 window.checkInterruptedSession = checkInterruptedSession;

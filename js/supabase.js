@@ -172,7 +172,7 @@ const supabaseClient = {
         if (!this.isAuthenticated()) throw new Error("Non authentifié");
         const user = this.getUser();
         const payload = {
-            id: profile.id || crypto.randomUUID(),
+            id: profile.id || createCycloDashId(),
             owner_id: user.id,
             display_name: profile.display_name.trim(),
             ftp_watts: parseInt(profile.ftp_watts) || 200,

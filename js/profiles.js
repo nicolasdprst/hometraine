@@ -20,7 +20,7 @@ const profilesManager = {
         // Si aucun profil n'existe (ni local ni distant), créer un profil par défaut invité
         if (this.profiles.length === 0) {
             const defaultProfile = {
-                id: crypto.randomUUID(),
+                id: createCycloDashId(),
                 display_name: 'Cycliste 1',
                 ftp_watts: state.ftp || 200,
                 avatar_color: '#3b82f6',
@@ -205,7 +205,7 @@ const profilesManager = {
         if (!name || !name.trim()) throw new Error("Le nom du profil est requis");
 
         const newProfile = {
-            id: crypto.randomUUID(),
+            id: createCycloDashId(),
             display_name: name.trim(),
             ftp_watts: parseInt(ftp) || 200,
             avatar_color: color || '#3b82f6',

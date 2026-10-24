@@ -2,6 +2,13 @@
 
 const config = {
     WHEEL_CIRCUMFERENCE_M: 0.165, // Calibration Turno (ajusté pour réalisme plat à 0.165)
+    // Les capteurs Elite notifient normalement au moins une fois par seconde.
+    // Ces marges évitent les faux « signal perdu » tout en bornant strictement
+    // l'intégration d'une dernière valeur en cas de silence radio.
+    POWER_FRESHNESS_MS: 5000,
+    SPEED_FRESHNESS_MS: 5000,
+    BLE_NOTIFICATION_STALE_MS: 6000,
+    MAX_INTEGRATION_STEP_MS: 2000,
     workoutsDB: {
         'endurance45': {
             name: 'Échauffement & Endurance',
@@ -38,12 +45,25 @@ const config = {
 const state = {
     device: null,
     server: null,
+    powerCharacteristic: null,
+    speedCharacteristic: null,
+    powerNotificationHandler: null,
+    speedNotificationHandler: null,
+    connectionGeneration: 0,
+    isConnecting: false,
+    gattConnected: false,
     isRecording: false,
+    sessionStatus: 'idle',
     isDemoMode: false,
     demoInterval: null,
     startTime: null,
     stopTime: null,
     pedalingTime: 0,
+    elapsedTime: 0,
+    reliableDataTime: 0,
+    powerMeasureTime: 0,
+    speedMeasureTime: 0,
+    totalWorkJ: 0,
     totalDistanceM: 0,
     sumWatts: 0,
     sumSpeed: 0,
@@ -57,14 +77,40 @@ const state = {
     activeWorkout: null,
     currentWorkoutStepIndex: 0,
     workoutStepTimeElapsed: 0,
-    sessionData: { time: [], watts: [], speed: [] },
+    sessionData: { time: [], timestamps: [], watts: [], speed: [], distance: [] },
     currentTab: 'compteur',
     bleStatus: 'disconnected',
     bleDeviceName: '',
     lastBleDataTime: null,
+    lastPowerDataTime: null,
+    lastSpeedDataTime: null,
+    lastBleNotificationTime: null,
+    sessionStartMonotonic: null,
+    lastTickMonotonic: null,
+    lastTickWallTime: null,
     wakeLockSupported: ('wakeLock' in navigator),
     wakeLockActive: false
 };
 
 window.config = config;
 window.state = state;
+
+// UUID v4 compatible avec les navigateurs antérieurs à crypto.randomUUID().
+function createCycloDashId() {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+        return crypto.randomUUID();
+    }
+
+    const bytes = new Uint8Array(16);
+    if (typeof crypto !== 'undefined' && typeof crypto.getRandomValues === 'function') {
+        crypto.getRandomValues(bytes);
+    } else {
+        for (let i = 0; i < bytes.length; i++) bytes[i] = Math.floor(Math.random() * 256);
+    }
+    bytes[6] = (bytes[6] & 0x0f) | 0x40;
+    bytes[8] = (bytes[8] & 0x3f) | 0x80;
+    const hex = Array.from(bytes, value => value.toString(16).padStart(2, '0')).join('');
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+window.createCycloDashId = createCycloDashId;

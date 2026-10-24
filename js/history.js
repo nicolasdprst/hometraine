@@ -10,15 +10,15 @@ async function saveSessionToHistory() {
     }
 
     const activeProfile = window.profilesManager ? window.profilesManager.activeProfile : null;
-    const profileId = activeProfile ? activeProfile.id : 'default-profile';
-    const sessionId = state.currentSessionId || crypto.randomUUID();
+    const profileId = state.sessionProfileId || (activeProfile ? activeProfile.id : 'default-profile');
+    const sessionId = state.currentSessionId || createCycloDashId();
 
-    const avgWatts = Math.round(state.sumWatts / state.pedalingTime);
+    const avgWatts = state.powerMeasureTime > 0 ? Math.round(state.sumWatts / state.powerMeasureTime) : 0;
     const maxWatts = Math.round(state.maxWatts);
-    const avgSpeed = parseFloat((state.sumSpeed / state.pedalingTime).toFixed(1));
+    const avgSpeed = state.speedMeasureTime > 0 ? parseFloat((state.sumSpeed / state.speedMeasureTime).toFixed(1)) : 0;
     const maxSpeed = parseFloat(state.maxSpeed.toFixed(1));
     const totalDistM = state.totalDistanceM;
-    const totalWorkKJ = Math.round(state.sumWatts / 1000);
+    const totalWorkKJ = Math.round(state.totalWorkJ / 1000);
     const energyKcal = totalWorkKJ;
 
     const sessionSummary = {
@@ -26,7 +26,9 @@ async function saveSessionToHistory() {
         profile_id: profileId,
         started_at: state.startTime ? state.startTime.toISOString() : new Date().toISOString(),
         ended_at: state.stopTime ? state.stopTime.toISOString() : new Date().toISOString(),
-        duration_seconds: state.pedalingTime,
+        duration_seconds: Math.round(state.elapsedTime),
+        active_duration_seconds: Math.round(state.pedalingTime),
+        reliable_data_seconds: Math.round(state.reliableDataTime),
         distance_meters: totalDistM,
         avg_power_watts: avgWatts,
         max_power_watts: maxWatts,
@@ -40,8 +42,10 @@ async function saveSessionToHistory() {
 
     const detailedData = {
         time: [...state.sessionData.time],
+        timestamps: [...(state.sessionData.timestamps || [])],
         watts: [...state.sessionData.watts],
-        speed: [...state.sessionData.speed]
+        speed: [...state.sessionData.speed],
+        distance: [...(state.sessionData.distance || [])]
     };
 
     // 1. Sauvegarde locale immédiate (historique résumés)
@@ -348,21 +352,30 @@ function downloadTCX(sessionId, session, detailedData) {
 
     const len = detailedData.time.length;
     for (let i = 0; i < len; i++) {
-        const w = detailedData.watts[i] || 0;
-        const s = detailedData.speed[i] || 0;
-        currentDist += (s / 3.6);
-        const ptDate = new Date(startDate.getTime() + (i * 1000));
+        const w = detailedData.watts[i];
+        const s = detailedData.speed[i];
+        const elapsed = Number(detailedData.time[i]) || 0;
+        const previousElapsed = i > 0 ? (Number(detailedData.time[i - 1]) || 0) : 0;
+        const deltaSeconds = Math.max(0, elapsed - previousElapsed);
+        if (detailedData.distance && Number.isFinite(detailedData.distance[i])) {
+            currentDist = detailedData.distance[i];
+        } else if (Number.isFinite(s)) {
+            currentDist += (s / 3.6) * deltaSeconds;
+        }
+        const recordedTimestamp = detailedData.timestamps && detailedData.timestamps[i];
+        const ptDate = recordedTimestamp ? new Date(recordedTimestamp) : new Date(startDate.getTime() + elapsed * 1000);
+        const powerXml = Number.isFinite(w) ? `\n          <Watts>${Math.round(w)}</Watts>` : '';
+        const speedXml = Number.isFinite(s) ? `\n          <Speed>${(s / 3.6).toFixed(2)}</Speed>` : '';
+        const extensionsXml = (powerXml || speedXml) ? `
+      <Extensions>
+        <TPX xmlns="http://www.garmin.com/xmlschemas/ActivityExtension/v2">${powerXml}${speedXml}
+        </TPX>
+      </Extensions>` : '';
 
         trackpoints += `
     <Trackpoint>
       <Time>${ptDate.toISOString()}</Time>
-      <DistanceMeters>${currentDist.toFixed(2)}</DistanceMeters>
-      <Extensions>
-        <TPX xmlns="http://www.garmin.com/xmlschemas/ActivityExtension/v2">
-          <Watts>${Math.round(w)}</Watts>
-          <Speed>${(s / 3.6).toFixed(2)}</Speed>
-        </TPX>
-      </Extensions>
+      <DistanceMeters>${currentDist.toFixed(2)}</DistanceMeters>${extensionsXml}
     </Trackpoint>`;
     }
 
@@ -453,7 +466,7 @@ async function migrateLegacyHistory() {
             const dateIso = item.date ? new Date(item.date).toISOString() : new Date().toISOString();
             if (!existingDates.has(dateIso)) {
                 const migratedItem = {
-                    id: crypto.randomUUID(),
+                    id: createCycloDashId(),
                     profile_id: activeProfile.id,
                     started_at: dateIso,
                     ended_at: dateIso,
