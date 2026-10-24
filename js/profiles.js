@@ -172,6 +172,11 @@ const profilesManager = {
         // Masquer l'overlay de sélection
         this.hidePicker();
 
+        // Fermer la fiche d'analyse si elle était ouverte
+        if (window.SessionDetail && typeof window.SessionDetail.close === 'function') {
+            window.SessionDetail.close();
+        }
+
         // Rafraîchir l'historique filtré par ce profil
         if (shouldRenderHistory && window.renderHistory) {
             window.renderHistory();

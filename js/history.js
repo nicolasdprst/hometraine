@@ -51,6 +51,7 @@ async function saveSessionToHistory() {
         total_work_kj: totalWorkKJ,
         energy_kcal: energyKcal,
         workout_name: (state.activeWorkout && state.activeWorkout.name) ? state.activeWorkout.name : 'Roule Libre',
+        ftp_at_session_watts: state.ftp || null,
         synced: false,
         sync_status: 'pending'
     };
@@ -229,6 +230,9 @@ async function deleteSessionById(sessionId) {
         await processDeletionQueue();
         pending = getDeletionQueue().some(item => item.id === sessionId);
     }
+    if (window.SessionDetail && typeof SessionDetail.onSessionDeleted === 'function') {
+        SessionDetail.onSessionDeleted(sessionId);
+    }
     await renderHistory();
     if (window.showAppToast) {
         window.showAppToast(pending ? 'Séance masquée. Suppression cloud en attente de connexion.' : 'Séance supprimée.', pending ? 'warning' : 'success');
@@ -401,10 +405,14 @@ async function renderHistory() {
         values.forEach(value => { const span = document.createElement('span'); span.textContent = value; metrics.appendChild(span); });
         const actions = document.createElement('div');
         actions.className = 'history-item-actions';
+        const analyzeBtn = document.createElement('button');
+        analyzeBtn.className = 'btn btn-sm btn-primary';
+        analyzeBtn.textContent = "Voir l'analyse";
+        analyzeBtn.onclick = (e) => { e.stopPropagation(); if (window.SessionDetail) SessionDetail.open(s); };
         const button = document.createElement('button');
-        button.className = 'btn btn-sm btn-primary';
+        button.className = 'btn btn-sm btn-secondary';
         button.textContent = 'TCX';
-        button.onclick = () => exportTCXById(s.id);
+        button.onclick = (e) => { e.stopPropagation(); exportTCXById(s.id); };
         const menu = document.createElement('details');
         menu.className = 'history-menu';
         const menuButton = document.createElement('summary');
@@ -413,10 +421,6 @@ async function renderHistory() {
         menuButton.textContent = '⋯';
         const menuPanel = document.createElement('div');
         menuPanel.className = 'history-menu-panel';
-        const detailsButton = document.createElement('button');
-        detailsButton.className = 'btn btn-sm btn-secondary';
-        detailsButton.textContent = 'Consulter les détails';
-        detailsButton.onclick = () => showSessionDetails(s);
         const deleteButton = document.createElement('button');
         deleteButton.className = 'btn btn-sm btn-danger';
         deleteButton.textContent = 'Supprimer la séance';
@@ -424,9 +428,11 @@ async function renderHistory() {
             console.error(error);
             if (window.showAppToast) window.showAppToast(error.message, 'error');
         });
-        menuPanel.append(detailsButton, deleteButton);
+        menuPanel.append(deleteButton);
         menu.append(menuButton, menuPanel);
-        actions.append(button, menu);
+        actions.append(analyzeBtn, button, menu);
+        content.style.cursor = 'pointer';
+        content.onclick = () => { if (window.SessionDetail) SessionDetail.open(s); };
         content.append(title, date, metrics);
         item.append(content, actions);
         list.appendChild(item);

@@ -280,7 +280,8 @@ const supabaseClient = {
             max_speed_kmh: sessionSummary.max_speed_kmh,
             total_work_kj: sessionSummary.total_work_kj,
             energy_kcal: sessionSummary.energy_kcal,
-            workout_name: sessionSummary.workout_name || 'Roule Libre'
+            workout_name: sessionSummary.workout_name || 'Roule Libre',
+            ftp_at_session_watts: sessionSummary.ftp_at_session_watts || null
         };
 
         // 1. Sauvegarde idempotente du résumé de session (Upsert)
