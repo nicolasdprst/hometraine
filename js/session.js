@@ -129,10 +129,16 @@ function renderChartData() {
 // --- DÉBUT DE SESSION ---
 function startSession() {
     if (state.isRecording || (!state.isDemoMode && !state.gattConnected)) return;
+    const activeProfile = window.profilesManager && window.profilesManager.activeProfile;
+    if (!activeProfile) {
+        window.profilesManager.showPicker(true);
+        if (window.showAppToast) window.showAppToast('Choisissez le cycliste avant de démarrer.', 'warning');
+        return;
+    }
     state.isRecording = true;
     state.sessionStatus = 'recording';
     state.currentSessionId = createCycloDashId();
-    state.sessionProfileId = (window.profilesManager && window.profilesManager.activeProfile) ? window.profilesManager.activeProfile.id : 'default-profile';
+    state.sessionProfileId = activeProfile.id;
     lastBackupElapsed = 0;
     state.startTime = new Date();
     state.stopTime = null;
@@ -387,8 +393,10 @@ async function checkInterruptedSession() {
         if (!backup || (backup.elapsedTime || backup.pedalingTime || 0) <= 30) return;
 
         const duration = backup.elapsedTime || backup.pedalingTime;
+        const ownerProfile = window.profilesManager && window.profilesManager.profiles.find(profile => profile.id === backup.profile_id);
+        const ownerLabel = ownerProfile ? ` pour ${ownerProfile.display_name}` : '';
         const dateStr = backup.startTime ? new Date(backup.startTime).toLocaleString() : 'récente';
-        if (!confirm(`Une séance interrompue (${formatTime(duration)}) du ${dateStr} a été retrouvée.\nVoulez-vous la restaurer et l'enregistrer dans votre historique ?`)) {
+        if (!confirm(`Une séance interrompue${ownerLabel} (${formatTime(duration)}) du ${dateStr} a été retrouvée.\nElle restera associée à son profil d'origine. Voulez-vous la restaurer ?`)) {
             localDataStore.remove('active_session_backup');
             return;
         }

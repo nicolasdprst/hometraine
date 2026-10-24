@@ -120,6 +120,121 @@ function saveStoredSessions(sessions) {
     return localDataStore.setJSON('sessions', sessions);
 }
 
+function getDeletionQueue() {
+    return localDataStore.getJSON('deletion_queue', []);
+}
+
+function saveDeletionQueue(queue) {
+    return localDataStore.setJSON('deletion_queue', queue);
+}
+
+function enqueueDeletion(session) {
+    const queue = getDeletionQueue();
+    if (!queue.some(item => item.id === session.id)) {
+        queue.push({
+            id: session.id,
+            profile_id: session.profile_id,
+            owner_id: localDataStore.getOwnerId(),
+            requested_at: new Date().toISOString()
+        });
+    }
+    if (!saveDeletionQueue(queue)) throw new Error('Suppression en attente non persistée');
+}
+
+async function processDeletionQueue() {
+    if (!window.supabaseClient || !window.supabaseClient.isAuthenticated()) return;
+    const queue = getDeletionQueue();
+    if (queue.length === 0) return;
+    const ownerId = window.supabaseClient.getUser().id;
+    const remaining = [];
+
+    for (const operation of queue) {
+        if (operation.owner_id !== ownerId) {
+            remaining.push(operation);
+            continue;
+        }
+        try {
+            await window.supabaseClient.deleteSession(operation.id);
+            const sessions = getStoredSessions().filter(session => session.id !== operation.id);
+            const uploadQueue = localDataStore.getJSON('sync_queue', []).filter(id => id !== operation.id);
+            const retryState = localDataStore.getJSON('sync_retry', {});
+            delete retryState[operation.id];
+            if (!saveStoredSessions(sessions)
+                || !localDataStore.setJSON('sync_queue', uploadQueue)
+                || !localDataStore.setJSON('sync_retry', retryState)) {
+                throw new Error('Nettoyage local de la suppression non persisté');
+            }
+            await cycloDb.remove('session-data', operation.id).catch(() => null);
+        } catch (error) {
+            operation.last_error = error.message;
+            operation.last_attempt_at = new Date().toISOString();
+            remaining.push(operation);
+        }
+    }
+    if (!saveDeletionQueue(remaining)) throw new Error('État des suppressions non persisté');
+}
+
+function confirmSessionDeletion(session) {
+    return new Promise(resolve => {
+        const modal = document.getElementById('deleteSessionModal');
+        const description = document.getElementById('deleteSessionDescription');
+        const cancel = document.getElementById('cancelDeleteSessionBtn');
+        const confirmButton = document.getElementById('confirmDeleteSessionBtn');
+        if (!modal || !cancel || !confirmButton) {
+            resolve(confirm('Supprimer définitivement cette séance ?'));
+            return;
+        }
+        const date = new Date(session.started_at || session.date);
+        description.textContent = `Séance du ${date.toLocaleDateString('fr-FR')} — ${formatTime(session.duration_seconds || session.duration || 0)}. L'activité et ses mesures seront supprimées.`;
+        modal.style.display = 'grid';
+        const finish = result => {
+            modal.style.display = 'none';
+            cancel.onclick = null;
+            confirmButton.onclick = null;
+            resolve(result);
+        };
+        cancel.onclick = () => finish(false);
+        confirmButton.onclick = () => finish(true);
+        confirmButton.focus();
+    });
+}
+
+async function deleteSessionById(sessionId) {
+    const sessions = getStoredSessions();
+    const session = sessions.find(item => item.id === sessionId);
+    if (!session) return;
+    const activeProfile = window.profilesManager && window.profilesManager.activeProfile;
+    if (!activeProfile || session.profile_id !== activeProfile.id) throw new Error('Cette séance n’appartient pas au profil actif');
+    if (!await confirmSessionDeletion(session)) return;
+
+    const mayExistRemotely = session.synced || (window.supabaseClient && window.supabaseClient.isAuthenticated());
+    if (mayExistRemotely) enqueueDeletion(session);
+
+    // Si un upload est déjà en cours, la tombstone est enregistrée d'abord,
+    // puis la suppression distante passe après lui et reste donc prioritaire.
+    if (syncQueuePromise) await syncQueuePromise;
+
+    if (!saveStoredSessions(sessions.filter(item => item.id !== sessionId))) {
+        throw new Error('La suppression locale n’a pas pu être enregistrée');
+    }
+    const uploadQueue = localDataStore.getJSON('sync_queue', []).filter(id => id !== sessionId);
+    const retryState = localDataStore.getJSON('sync_retry', {});
+    delete retryState[sessionId];
+    localDataStore.setJSON('sync_queue', uploadQueue);
+    localDataStore.setJSON('sync_retry', retryState);
+    await cycloDb.remove('session-data', sessionId).catch(error => console.warn('Mesures locales à nettoyer', error));
+
+    let pending = mayExistRemotely;
+    if (navigator.onLine !== false && window.supabaseClient && window.supabaseClient.isAuthenticated()) {
+        await processDeletionQueue();
+        pending = getDeletionQueue().some(item => item.id === sessionId);
+    }
+    await renderHistory();
+    if (window.showAppToast) {
+        window.showAppToast(pending ? 'Séance masquée. Suppression cloud en attente de connexion.' : 'Séance supprimée.', pending ? 'warning' : 'success');
+    }
+}
+
 // Queue de synchronisation hors-ligne
 function enqueueSync(sessionId) {
     try {
@@ -139,14 +254,17 @@ async function processSyncQueue() {
     if (syncQueuePromise) return syncQueuePromise;
     syncQueuePromise = (async () => {
         await window.profilesManager.syncFromSupabase();
+        await processDeletionQueue();
         let queue = localDataStore.getJSON('sync_queue', []);
         if (queue.length === 0) return;
         const retryState = localDataStore.getJSON('sync_retry', {});
 
         const sessions = getStoredSessions();
+        const deletedIds = new Set(getDeletionQueue().map(item => item.id));
         const newQueue = [];
 
         for (const id of queue) {
+            if (deletedIds.has(id)) continue;
             if (retryState[id] && retryState[id].next_at > Date.now()) {
                 newQueue.push(id);
                 continue;
@@ -202,6 +320,8 @@ async function renderHistory() {
     checkLegacyHistoryBanner();
 
     let allSessions = getStoredSessions();
+    const deletedIds = new Set(getDeletionQueue().map(item => item.id));
+    allSessions = allSessions.filter(session => !deletedIds.has(session.id));
 
     // Si connecté à Supabase, fusionner les séances distantes pour ce profil
     if (window.supabaseClient && window.supabaseClient.isAuthenticated() && profileId) {
@@ -209,7 +329,7 @@ async function renderHistory() {
             const remoteSessions = await window.supabaseClient.fetchSessions(profileId, 50);
             if (Array.isArray(remoteSessions) && remoteSessions.length > 0) {
                 const map = new Map();
-                remoteSessions.forEach(s => {
+                remoteSessions.filter(s => !deletedIds.has(s.id)).forEach(s => {
                     s.synced = true;
                     s.sync_status = 'synced';
                     map.set(s.id, s);
@@ -227,7 +347,7 @@ async function renderHistory() {
     }
 
     // Filtrer pour le profil actif
-    const profileSessions = profileId ? allSessions.filter(s => s.profile_id === profileId) : allSessions;
+    const profileSessions = profileId ? allSessions.filter(s => s.profile_id === profileId) : [];
 
     // Rendu des statistiques personnelles agrégées
     renderPersonalStats(profileSessions);
@@ -262,8 +382,8 @@ async function renderHistory() {
         title.style.cssText = 'font-weight:700;color:var(--text-primary);font-size:0.95rem';
         title.textContent = s.workout_name || 'Roule Libre';
         const sync = document.createElement('span');
-        sync.style.cssText = `font-size:0.75rem;color:${s.synced ? 'var(--success)' : 'var(--warning)'}`;
-        sync.textContent = s.synced ? ' ☁️ Sync' : ' ⏳ Local';
+        sync.className = `history-sync-badge ${s.synced ? 'synced' : 'local'}`;
+        sync.textContent = s.synced ? '☁️ Synchronisée' : '⏳ Locale';
         title.appendChild(sync);
         const date = document.createElement('div');
         date.style.cssText = 'font-size:0.78rem;color:var(--text-secondary);margin:0.25rem 0 0.4rem';
@@ -279,14 +399,67 @@ async function renderHistory() {
         ];
         if (s.total_work_kj) values.push(`🔥 ${s.total_work_kj} kJ`);
         values.forEach(value => { const span = document.createElement('span'); span.textContent = value; metrics.appendChild(span); });
+        const actions = document.createElement('div');
+        actions.className = 'history-item-actions';
         const button = document.createElement('button');
         button.className = 'btn btn-sm btn-primary';
-        button.textContent = '📥 TCX';
+        button.textContent = 'TCX';
         button.onclick = () => exportTCXById(s.id);
+        const menu = document.createElement('details');
+        menu.className = 'history-menu';
+        const menuButton = document.createElement('summary');
+        menuButton.className = 'btn btn-sm btn-secondary history-menu-button';
+        if (menuButton.setAttribute) menuButton.setAttribute('aria-label', `Actions pour la séance du ${dateStr}`);
+        menuButton.textContent = '⋯';
+        const menuPanel = document.createElement('div');
+        menuPanel.className = 'history-menu-panel';
+        const detailsButton = document.createElement('button');
+        detailsButton.className = 'btn btn-sm btn-secondary';
+        detailsButton.textContent = 'Consulter les détails';
+        detailsButton.onclick = () => showSessionDetails(s);
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'btn btn-sm btn-danger';
+        deleteButton.textContent = 'Supprimer la séance';
+        deleteButton.onclick = () => deleteSessionById(s.id).catch(error => {
+            console.error(error);
+            if (window.showAppToast) window.showAppToast(error.message, 'error');
+        });
+        menuPanel.append(detailsButton, deleteButton);
+        menu.append(menuButton, menuPanel);
+        actions.append(button, menu);
         content.append(title, date, metrics);
-        item.append(content, button);
+        item.append(content, actions);
         list.appendChild(item);
     });
+}
+
+function showSessionDetails(session) {
+    const modal = document.getElementById('sessionDetailsModal');
+    const content = document.getElementById('sessionDetailsContent');
+    const closeButton = document.getElementById('closeSessionDetailsBtn');
+    if (!modal || !content || !closeButton) return;
+    content.textContent = '';
+    const values = [
+        ['Entraînement', session.workout_name || 'Roule Libre'],
+        ['Date', new Date(session.started_at || session.date).toLocaleString('fr-FR')],
+        ['Durée', formatTime(session.duration_seconds || session.duration || 0)],
+        ['Distance', `${((session.distance_meters || session.distance || 0) / 1000).toFixed(2)} km`],
+        ['Puissance moyenne', `${session.avg_power_watts || session.avgWatts || 0} W`],
+        ['Vitesse moyenne', `${session.avg_speed_kmh || session.avgSpeed || '0.0'} km/h`]
+    ];
+    values.forEach(([label, value]) => {
+        const row = document.createElement('div');
+        row.className = 'session-detail-row';
+        const key = document.createElement('span');
+        const val = document.createElement('strong');
+        key.textContent = label;
+        val.textContent = value;
+        row.append(key, val);
+        content.appendChild(row);
+    });
+    modal.style.display = 'grid';
+    closeButton.onclick = () => { modal.style.display = 'none'; };
+    closeButton.focus();
 }
 
 // Statistiques agrégées du profil
@@ -542,3 +715,5 @@ window.renderHistory = renderHistory;
 window.exportTCXById = exportTCXById;
 window.migrateLegacyHistory = migrateLegacyHistory;
 window.processSyncQueue = processSyncQueue;
+window.processDeletionQueue = processDeletionQueue;
+window.deleteSessionById = deleteSessionById;

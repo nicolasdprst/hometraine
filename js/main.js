@@ -1,6 +1,17 @@
 // --- INITIALISATION & LOGIQUE PRINCIPALE ---
 
 let waitingWorker = null;
+let appToastTimer = null;
+
+window.showAppToast = function(message, type = 'success') {
+    const toast = document.getElementById('appToast');
+    if (!toast) return;
+    toast.textContent = message;
+    toast.className = `app-toast ${type}`;
+    toast.style.display = 'block';
+    if (appToastTimer) clearTimeout(appToastTimer);
+    appToastTimer = setTimeout(() => { toast.style.display = 'none'; }, 3600);
+};
 
 window.addEventListener('DOMContentLoaded', async () => {
     if (window.supabaseClient) await window.supabaseClient.ready();
@@ -55,7 +66,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
     // 6. Vérifier si une séance précédente a été interrompue inopinément
     if (window.checkInterruptedSession) {
-        window.checkInterruptedSession();
+        await window.checkInterruptedSession();
     }
 
     // 7. Traiter la file d'attente de synchronisation hors-ligne

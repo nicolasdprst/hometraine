@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="css/dashboard.css">
     <link rel="stylesheet" href="css/compteur.css">
     <link rel="stylesheet" href="css/responsive.css">
+    <link rel="stylesheet" href="css/ux-v3.css">
 </head>
 <body>
 
@@ -27,11 +28,12 @@
     </div>
 
     <!-- OVERLAY SÉLECTION DE PROFIL : "QUI PÉDALE AUJOURD'HUI ?" -->
-    <div id="profilePickerOverlay" class="profile-picker-overlay">
+    <div id="profilePickerOverlay" class="profile-picker-overlay" role="dialog" aria-modal="true" aria-labelledby="profilePickerTitle">
         <div class="profile-picker-modal">
             <div class="profile-picker-header">
-                <div class="profile-picker-title">🚴 Qui pédale aujourd'hui ?</div>
-                <div class="profile-picker-sub">Sélectionnez votre profil ou ajoutez-en un</div>
+                <div class="profile-picker-brand">CYCLO<span>DASH</span></div>
+                <div id="profilePickerTitle" class="profile-picker-title">Qui pédale aujourd'hui&nbsp;?</div>
+                <div class="profile-picker-sub">Choisissez votre profil avant d'accéder au compteur</div>
             </div>
             <div id="pickerProfilesGrid" class="picker-profiles-grid">
                 <!-- Injecté par profilesManager -->
@@ -67,7 +69,7 @@
 
             <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;" id="pickerDefaultButtons">
                 <button class="btn btn-primary" style="flex: 1;" onclick="profilesManager.showProfileForm()">➕ Ajouter un profil</button>
-                <button class="btn btn-secondary" onclick="profilesManager.hidePicker()">Fermer</button>
+                <button id="pickerCloseBtn" class="btn btn-secondary" onclick="profilesManager.hidePicker()">Fermer</button>
             </div>
         </div>
     </div>
@@ -79,6 +81,17 @@
         <button class="tab-btn" onclick="switchTab('history')"><span class="tab-icon">📜</span><span class="tab-label">Historique</span></button>
         <button class="tab-btn" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">Paramètres</span></button>
     </nav>
+
+    <div id="globalProfileBar" class="global-profile-bar" aria-live="polite">
+        <div class="global-profile-identity">
+            <span id="globalProfileAvatar" class="global-profile-avatar">CD</span>
+            <span class="global-profile-copy">
+                <strong id="globalProfileName">Aucun profil</strong>
+                <span id="globalProfileFtp">Sélection requise</span>
+            </span>
+        </div>
+        <button class="btn btn-secondary btn-profile-change" onclick="profilesManager.showPicker()">Changer</button>
+    </div>
 
     <div class="container">
         <!-- COMPTEUR TAB (MODE KIOSK AMOLED PAR DÉFAUT) -->
@@ -95,8 +108,11 @@
                     <!-- Badge de profil cliquable pour changement rapide -->
                     <div id="kioskProfileBadge" class="kiosk-profile-pill" onclick="profilesManager.showPicker()" title="Changer de cycliste">
                         <span id="kioskProfileAvatar" class="kiosk-profile-avatar">CD</span>
-                        <span id="kioskProfileName" class="kiosk-profile-name">Profil</span>
-                        <span style="font-size: 0.7rem; opacity: 0.7;">⇄</span>
+                        <span class="kiosk-profile-copy">
+                            <strong id="kioskProfileName" class="kiosk-profile-name">Profil</strong>
+                            <span id="kioskProfileFtp" class="kiosk-profile-ftp">FTP -- W</span>
+                        </span>
+                        <span class="kiosk-profile-change">Changer</span>
                     </div>
 
                     <div class="kiosk-top-actions">
@@ -161,7 +177,7 @@
 
             <!-- BOUTONS D'ACTION TACTILES PLEINES TOUCHES -->
             <div class="kiosk-action-bar">
-                <button id="kioskStartBtn" class="btn-action btn-success" style="display: none;">▶ DÉBUTER LA SÉANCE</button>
+                <button id="kioskStartBtn" class="btn-action btn-success" style="display: none;">▶ Démarrer</button>
                 <button id="kioskStopBtn" class="btn-action btn-danger" style="display: none;">⏹ TERMINER LA SÉANCE</button>
             </div>
         </div>
@@ -179,7 +195,7 @@
             </div>
 
             <div class="controls" id="sessionControls" style="display: none;">
-                <button id="startBtn" class="btn btn-success">▶ DÉBUTER</button>
+                <button id="startBtn" class="btn btn-success">▶ Démarrer</button>
                 <button id="stopBtn" class="btn btn-danger" style="display: none;">⏹ TERMINER</button>
             </div>
 
@@ -296,7 +312,7 @@
         <!-- HISTORY TAB (INDIVIDUEL PAR PROFIL) -->
         <div id="history" class="tab-content">
             <header>
-                <h1>Historique</h1>
+                <h1 id="historyTitle">Historique</h1>
                 <p class="status">Vos activités passées</p>
             </header>
 
@@ -347,7 +363,7 @@
         <!-- SETTINGS TAB (GESTION MULTI-PROFILS & SUPABASE) -->
         <div id="settings" class="tab-content">
             <header>
-                <h1>Paramètres</h1>
+                <h1 id="settingsTitle">Paramètres</h1>
                 <p class="status">Personnalisez votre expérience</p>
             </header>
             <div class="glass" style="padding: 1.75rem 1.25rem;">
@@ -466,6 +482,30 @@
             </div>
         </div>
     </div>
+
+    <div id="deleteSessionModal" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteSessionTitle" style="display:none;">
+        <div class="confirm-dialog">
+            <div class="confirm-icon" aria-hidden="true">🗑️</div>
+            <h2 id="deleteSessionTitle">Supprimer cette séance&nbsp;?</h2>
+            <p id="deleteSessionDescription">Cette action supprimera l'activité et ses mesures enregistrées.</p>
+            <div class="confirm-actions">
+                <button id="cancelDeleteSessionBtn" class="btn btn-secondary">Annuler</button>
+                <button id="confirmDeleteSessionBtn" class="btn btn-danger">Supprimer définitivement</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="sessionDetailsModal" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="sessionDetailsTitle" style="display:none;">
+        <div class="confirm-dialog session-details-dialog">
+            <h2 id="sessionDetailsTitle">Détails de la séance</h2>
+            <div id="sessionDetailsContent" class="session-details-content"></div>
+            <div class="confirm-actions">
+                <button id="closeSessionDetailsBtn" class="btn btn-primary">Fermer</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="appToast" class="app-toast" role="status" aria-live="polite" style="display:none;"></div>
 
     <!-- Scripts dans l'ordre de dépendance -->
     <script src="js/vendor/chart.umd.js"></script>

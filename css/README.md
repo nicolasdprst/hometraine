@@ -12,6 +12,7 @@ Ce dossier rassemble l'ensemble des feuilles de style de l'application, découp�
 - `components.css` : Éléments d'interface réutilisables (boutons, formulaires, cartes de sélection, console de statut).
 - `dashboard.css` : Disposition du tableau de bord de pilotage (cartes des métriques clés, graphique Chart.js et affichage de l'intervalle en cours).
 - `responsive.css` : Points de rupture (media queries) pour l'affichage sur tablettes et smartphones.
+- `ux-v3.css` : Sélecteur de profils plein écran, identité active, boutons contrastés, historique et dialogues tactiles du Batch 3.
 
 ---
 

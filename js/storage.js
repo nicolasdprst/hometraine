@@ -52,9 +52,17 @@ const localDataStore = {
             return Array.from(map.values());
         };
         const profiles = mergeById(this.getJSON('profiles', []), this.getJSON('profiles', [], 'anonymous'));
-        const sessions = mergeById(this.getJSON('sessions', []), this.getJSON('sessions', [], 'anonymous'));
+        const anonymousDeletions = this.getJSON('deletion_queue', [], 'anonymous');
+        const deletionQueue = mergeById(this.getJSON('deletion_queue', []), anonymousDeletions)
+            .map(item => ({ ...item, owner_id: ownerId }));
+        const deletedIds = new Set(deletionQueue.map(item => item.id));
+        const sessions = mergeById(this.getJSON('sessions', []), this.getJSON('sessions', [], 'anonymous'))
+            .filter(item => !deletedIds.has(item.id));
         const queue = Array.from(new Set([...this.getJSON('sync_queue', []), ...sessions.map(item => item.id)]));
-        return this.setJSON('profiles', profiles) && this.setJSON('sessions', sessions) && this.setJSON('sync_queue', queue);
+        return this.setJSON('profiles', profiles)
+            && this.setJSON('sessions', sessions)
+            && this.setJSON('sync_queue', queue)
+            && this.setJSON('deletion_queue', deletionQueue);
     },
 
     migrateLegacyToCurrentAccount() {
