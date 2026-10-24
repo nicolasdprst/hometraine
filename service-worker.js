@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cyclodash-v14';
+const CACHE_NAME = 'cyclodash-v16-stability';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -16,7 +16,10 @@ const ASSETS = [
   './js/session.js',
   './js/history.js',
   './js/main.js',
-  './manifest.json'
+  './manifest.json',
+  './icons/cyclodash.svg',
+  './icons/cyclodash-192.png',
+  './icons/cyclodash-512.png'
 ];
 
 // Installation et mise en cache initiale
@@ -51,23 +54,21 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Stratégie Network-First (Réseau d'abord, cache en secours hors ligne)
+// Navigation réseau avec secours hors ligne, ressources statiques cache-first.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const requestUrl = new URL(e.request.url);
 
-  e.respondWith(
-    fetch(e.request)
-      .then((response) => {
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(e.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(e.request);
-      })
-  );
+  // Laisser passer sans interception les API et ressources tierces (notamment
+  // une future intégration Supabase).
+  if (requestUrl.origin !== self.location.origin) return;
+
+  if (e.request.mode === 'navigate') {
+    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+    return;
+  }
+
+  // Les ressources d'une version proviennent toutes du même cache préchargé,
+  // ce qui évite de mélanger du JavaScript de versions incompatibles.
+  e.respondWith(caches.match(e.request).then((cached) => cached || fetch(e.request)));
 });

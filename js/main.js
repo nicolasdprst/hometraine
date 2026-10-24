@@ -67,7 +67,12 @@ window.switchTab = function(tabId) {
     // on rafraîchit immédiatement le graphique qui était en veille
     if (tabId === 'dashboard' && state.isRecording) {
         renderChartData();
+        updateWorkoutBanner();
     }
+    if (tabId === 'compteur' && state.isRecording) {
+        updateKioskWorkoutBanner();
+    }
+    updateLiveMetrics();
 };
 
 // --- GESTION DES PARAMÈTRES ---

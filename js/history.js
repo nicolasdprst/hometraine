@@ -7,14 +7,21 @@ function saveSessionToHistory() {
     const sessionSummary = {
         id: Date.now(),
         date: state.startTime.toISOString(),
-        duration: state.pedalingTime,
+        duration: state.elapsedTime,
+        activeDuration: state.pedalingTime,
+        reliableDataDuration: state.reliableDataTime,
         distance: state.totalDistanceM,
-        avgWatts: Math.round(state.sumWatts / state.pedalingTime),
-        avgSpeed: (state.sumSpeed / state.pedalingTime).toFixed(1),
+        avgWatts: state.powerMeasureTime > 0 ? Math.round(state.sumWatts / state.powerMeasureTime) : 0,
+        avgSpeed: state.speedMeasureTime > 0 ? (state.sumSpeed / state.speedMeasureTime).toFixed(1) : '0.0',
+        maxWatts: state.maxWatts,
+        maxSpeed: state.maxSpeed,
+        totalWorkKJ: Math.round(state.totalWorkJ / 1000),
         data: {
             time: [...state.sessionData.time],
+            timestamps: [...state.sessionData.timestamps],
             watts: [...state.sessionData.watts],
-            speed: [...state.sessionData.speed]
+            speed: [...state.sessionData.speed],
+            distance: [...state.sessionData.distance]
         }
     };
 
@@ -68,20 +75,28 @@ function exportTCX(session) {
     for (let i = 0; i < session.data.time.length; i++) {
         const w = session.data.watts[i];
         const s = session.data.speed[i];
-        currentDist += (s / 3.6);
-        const ptDate = new Date(startD.getTime() + (i * 1000));
+        const elapsed = Number(session.data.time[i]) || 0;
+        const previousElapsed = i > 0 ? (Number(session.data.time[i - 1]) || 0) : 0;
+        const deltaSeconds = Math.max(0, elapsed - previousElapsed);
+        if (session.data.distance && Number.isFinite(session.data.distance[i])) {
+            currentDist = session.data.distance[i];
+        } else if (Number.isFinite(s)) {
+            currentDist += (s / 3.6) * deltaSeconds;
+        }
+        const recordedTimestamp = session.data.timestamps && session.data.timestamps[i];
+        const ptDate = recordedTimestamp ? new Date(recordedTimestamp) : new Date(startD.getTime() + elapsed * 1000);
+        const powerXml = Number.isFinite(w) ? `\n          <Watts>${Math.round(w)}</Watts>` : '';
+        const speedXml = Number.isFinite(s) ? `\n          <Speed>${(s / 3.6).toFixed(2)}</Speed>` : '';
+        const extensionsXml = (powerXml || speedXml) ? `
+      <Extensions>
+        <TPX xmlns="http://www.garmin.com/xmlschemas/ActivityExtension/v2">${powerXml}${speedXml}
+        </TPX>
+      </Extensions>` : '';
         
         trackpoints += `
     <Trackpoint>
       <Time>${ptDate.toISOString()}</Time>
-      <DistanceMeters>${currentDist.toFixed(2)}</DistanceMeters>
-      <Cadence>0</Cadence>
-      <Extensions>
-        <TPX xmlns="http://www.garmin.com/xmlschemas/ActivityExtension/v2">
-          <Watts>${Math.round(w)}</Watts>
-          <Speed>${(s / 3.6).toFixed(2)}</Speed>
-        </TPX>
-      </Extensions>
+      <DistanceMeters>${currentDist.toFixed(2)}</DistanceMeters>${extensionsXml}
     </Trackpoint>`;
     }
 

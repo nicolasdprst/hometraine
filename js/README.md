@@ -28,4 +28,7 @@ Ce dossier regroupe la logique applicative du projet en JavaScript standard (ES6
 ## Notes techniques
 
 - **Calibration du capteur Misuro B+ (Elite Turno)** : La constante `WHEEL_CIRCUMFERENCE_M` dans `state.js` est réglée à `0.165` mètres en raison de la démultiplication interne du volant d'inertie.
+- **États Bluetooth** : `disconnected`, `connecting`, `connected` et `stale` décrivent uniquement la liaison. Ils sont indépendants de `sessionStatus` (`idle`, `recording`, `stopped`) ; terminer une séance ne ferme donc pas la connexion GATT.
+- **Fraîcheur des mesures** : puissance et vitesse ont chacune leur horodatage et un seuil initial de 5 s. L'absence de toute notification pendant 6 s place la liaison en `stale`. Une valeur périmée est enregistrée comme absente (`null`) et n'est plus intégrée dans la distance ou le travail.
+- **Temps de séance** : `elapsedTime` vient de l'horloge monotone, `pedalingTime` mesure l'activité détectée et `reliableDataTime` le temps effectivement couvert par au moins une mesure fraîche. Les callbacks d'affichage ne définissent pas la durée.
 - **Ajout d'un entraînement** : Il suffit d'ajouter une entrée dans l'objet `config.workoutsDB` de `state.js`. L'interface de l'onglet Entraînements la prendra en compte au chargement suivant.
