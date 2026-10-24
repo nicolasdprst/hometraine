@@ -89,7 +89,7 @@ function selectWorkout(workoutId) {
     }
     renderWorkoutStepList();
     if (window.switchTab) {
-        window.switchTab('dashboard');
+        window.switchTab(state.currentTab === 'dashboard' ? 'dashboard' : 'compteur');
     }
 }
 
@@ -181,9 +181,6 @@ function updateWorkoutBanner() {
     document.getElementById('workoutTargetDisplay').innerText = `Cible : Zone ${step.type} (${getZoneTargetString(step.type)})`;
     document.getElementById('workoutTimeDisplay').innerText = `Temps restant : ${formatTime(timeRemaining)}`;
     
-    // Rerender the active checklist roadmap
-    renderWorkoutStepList();
-    
     const color = getZoneColor(step.type);
     banner.style.borderLeftColor = color;
     document.getElementById('zoneBar').style.background = color;
@@ -192,10 +189,22 @@ function updateWorkoutBanner() {
     if (pct > 100) pct = 100;
     document.getElementById('zoneBar').style.width = `${pct}%`;
 
-    state.workoutStepTimeElapsed++;
-    if (state.workoutStepTimeElapsed >= step.duration) {
+}
+
+function advanceWorkout(elapsedSeconds) {
+    if (!state.activeWorkout || !state.isRecording || elapsedSeconds <= 0) return;
+    const previousStep = state.currentWorkoutStepIndex;
+    state.workoutStepTimeElapsed += elapsedSeconds;
+
+    while (state.currentWorkoutStepIndex < state.activeWorkout.steps.length) {
+        const step = state.activeWorkout.steps[state.currentWorkoutStepIndex];
+        if (state.workoutStepTimeElapsed < step.duration) break;
+        state.workoutStepTimeElapsed -= step.duration;
         state.currentWorkoutStepIndex++;
-        state.workoutStepTimeElapsed = 0;
+    }
+
+    if (state.currentWorkoutStepIndex !== previousStep && state.currentTab === 'dashboard') {
+        renderWorkoutStepList();
     }
 }
 
@@ -206,3 +215,4 @@ window.getZoneColor = getZoneColor;
 window.selectWorkout = selectWorkout;
 window.renderWorkoutStepList = renderWorkoutStepList;
 window.updateWorkoutBanner = updateWorkoutBanner;
+window.advanceWorkout = advanceWorkout;
