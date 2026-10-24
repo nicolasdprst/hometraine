@@ -57,7 +57,13 @@ const state = {
     activeWorkout: null,
     currentWorkoutStepIndex: 0,
     workoutStepTimeElapsed: 0,
-    sessionData: { time: [], watts: [], speed: [] }
+    sessionData: { time: [], watts: [], speed: [] },
+    currentTab: 'compteur',
+    bleStatus: 'disconnected',
+    bleDeviceName: '',
+    lastBleDataTime: null,
+    wakeLockSupported: ('wakeLock' in navigator),
+    wakeLockActive: false
 };
 
 window.config = config;

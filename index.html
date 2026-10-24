@@ -3,30 +3,116 @@
 <head>
     <meta charset="UTF-8">
     <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#0f172a">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Home Trainer Dashboard</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>CycloDash</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;800&display=swap" rel="stylesheet">
+    <script src="js/vendor/chart.umd.js"></script>
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/base.css">
     <link rel="stylesheet" href="css/layout.css">
     <link rel="stylesheet" href="css/components.css">
     <link rel="stylesheet" href="css/dashboard.css">
+    <link rel="stylesheet" href="css/compteur.css">
     <link rel="stylesheet" href="css/responsive.css">
 </head>
 <body>
 
+    <!-- Toast de mise à jour Service Worker non intrusif -->
+    <div id="updateToast" class="update-toast" style="display: none;">
+        <span id="updateToastText">Nouvelle version prête</span>
+        <button id="applyUpdateBtn" class="btn-update">Mettre à jour</button>
+    </div>
+
     <nav>
-        <button class="tab-btn active" onclick="switchTab('dashboard')"><span class="tab-icon">📊</span><span class="tab-label">Dashboard</span></button>
+        <button class="tab-btn active" onclick="switchTab('compteur')"><span class="tab-icon">🚴</span><span class="tab-label">Compteur</span></button>
+        <button class="tab-btn" onclick="switchTab('dashboard')"><span class="tab-icon">📊</span><span class="tab-label">Dashboard</span></button>
         <button class="tab-btn" onclick="switchTab('workouts')"><span class="tab-icon">🏋️</span><span class="tab-label">Entraînements</span></button>
         <button class="tab-btn" onclick="switchTab('history')"><span class="tab-icon">📜</span><span class="tab-label">Historique</span></button>
         <button class="tab-btn" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">Paramètres</span></button>
     </nav>
 
     <div class="container">
-        <!-- DASHBOARD TAB -->
-        <div id="dashboard" class="tab-content active">
+        <!-- COMPTEUR TAB (MODE KIOSK AMOLED PAR DÉFAUT) -->
+        <div id="compteur" class="tab-content active">
+            <!-- Topbar compacte avec état BLE et Wake Lock -->
+            <div class="kiosk-topbar">
+                <div class="kiosk-ble-indicator">
+                    <span id="kioskBleDot" class="kiosk-ble-dot"></span>
+                    <span id="kioskBleText" class="kiosk-ble-text">Prêt à scanner</span>
+                    <span id="kioskWakeLockBadge" class="kiosk-wakelock-badge">☀️ Écran actif</span>
+                </div>
+                <div class="kiosk-top-actions">
+                    <button id="kioskConnectBtn" class="btn-kiosk btn-primary">🔗 Connecter</button>
+                    <button id="kioskDemoBtn" class="btn-kiosk" style="display: none; background: #6366f1; color: #fff;">🎮 Démo</button>
+                </div>
+            </div>
+
+            <!-- Bandeau entraînement compact en mode Compteur -->
+            <div id="kioskWorkoutBanner" class="kiosk-workout-banner">
+                <div class="kiosk-workout-header">
+                    <span id="kioskWorkoutNameDisplay" class="kiosk-workout-name">Entraînement</span>
+                    <span id="kioskWorkoutTimeDisplay" class="kiosk-workout-time">--:--</span>
+                </div>
+                <div id="kioskWorkoutTargetDisplay" class="kiosk-workout-target">Cible : --- W</div>
+            </div>
+
+            <!-- HERO METRIC : VITESSE INSTANTANÉE (LISIBLE À 1 MÈTRE) -->
+            <div class="kiosk-hero-card">
+                <div class="kiosk-metric-label">Vitesse Instantanée</div>
+                <div class="kiosk-speed-display">
+                    <span id="kioskSpeedVal" class="kiosk-speed-val">0.0</span>
+                    <span class="kiosk-speed-unit">km/h</span>
+                </div>
+            </div>
+
+            <!-- GRILLE 2 : PUISSANCE INSTANTANÉE & MOYENNE -->
+            <div class="kiosk-grid-2">
+                <div class="kiosk-sub-card" id="kioskWattsCard">
+                    <div class="kiosk-metric-label">⚡ Puissance</div>
+                    <div class="kiosk-val-container">
+                        <span id="kioskWattsVal" class="kiosk-watts-val">0</span>
+                        <span class="kiosk-metric-unit">W</span>
+                    </div>
+                </div>
+                <div class="kiosk-sub-card">
+                    <div class="kiosk-metric-label">⚡ Moyenne</div>
+                    <div class="kiosk-val-container">
+                        <span id="kioskAvgWattsVal" class="kiosk-sub-val">0</span>
+                        <span class="kiosk-metric-unit">W</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- GRILLE 3 : DURÉE & DISTANCE -->
+            <div class="kiosk-grid-2">
+                <div class="kiosk-sub-card">
+                    <div class="kiosk-metric-label">⏱ Durée</div>
+                    <div class="kiosk-val-container">
+                        <span id="kioskDurationVal" class="kiosk-sub-val">00:00</span>
+                    </div>
+                </div>
+                <div class="kiosk-sub-card">
+                    <div class="kiosk-metric-label">📏 Distance</div>
+                    <div class="kiosk-val-container">
+                        <span id="kioskDistanceVal" class="kiosk-sub-val">0.00</span>
+                        <span class="kiosk-metric-unit">km</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOUTONS D'ACTION TACTILES PLEINES TOUCHES -->
+            <div class="kiosk-action-bar">
+                <button id="kioskStartBtn" class="btn-action btn-success" style="display: none;">▶ DÉBUTER LA SÉANCE</button>
+                <button id="kioskStopBtn" class="btn-action btn-danger" style="display: none;">⏹ TERMINER LA SÉANCE</button>
+            </div>
+        </div>
+
+        <!-- DASHBOARD TAB (MODE CLASSIQUE COMPLET AVEC GRAPHIQUE) -->
+        <div id="dashboard" class="tab-content">
             <header>
                 <h1>CycloDash</h1>
                 <p id="status" class="status">Prêt à scanner</p>
@@ -159,7 +245,6 @@
                 <p class="status">Vos activités passées</p>
             </header>
             <div class="glass" id="historyList">
-                <!-- Injected via JS -->
                 <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Aucune activité enregistrée.</div>
             </div>
         </div>
@@ -192,7 +277,29 @@
                     </label>
                 </div>
 
-                <button class="btn btn-success" onclick="saveSettings()">Enregistrer</button>
+                <!-- Section Maintien de l'écran (Wake Lock) -->
+                <div class="form-group" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
+                    <label style="font-weight: 600; color: var(--text-primary);">Maintien de l'écran allumé (Screen Wake Lock)</label>
+                    <p id="wakeLockSettingStatus" style="font-size: 0.85rem; margin-top: 0.35rem; font-weight: 500;">
+                        Vérification...
+                    </p>
+                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.5rem; line-height: 1.4;">
+                        💡 <em>Note pour Android 7 / Galaxy S6 :</em> Si votre smartphone éteint l'écran malgré le Wake Lock, vous pouvez régler la mise en veille sur 30 minutes dans <strong>Paramètres Android > Affichage</strong> ou activer l'option <strong>"Rester actif pendant la charge"</strong> dans les <strong>Options de développement</strong> d'Android.
+                    </p>
+                </div>
+
+                <!-- Section Mode Plein Écran manuel -->
+                <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
+                    <label style="font-weight: 600; color: var(--text-primary);">Affichage Plein Écran</label>
+                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem; margin-bottom: 0.75rem;">
+                        Permet de masquer la barre d'adresse de Chrome si la PWA est exécutée depuis le navigateur.
+                    </p>
+                    <button class="btn btn-primary" onclick="toggleFullscreen()">Basculer en Plein Écran</button>
+                </div>
+
+                <div style="margin-top: 2rem;">
+                    <button class="btn btn-success" onclick="saveSettings()">Enregistrer les paramètres</button>
+                </div>
 
                 <div id="zonesDisplay" style="margin-top: 2rem; display: none;">
                     <h3>Vos Zones Estimées</h3>

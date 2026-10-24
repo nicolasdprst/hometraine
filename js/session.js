@@ -1,8 +1,92 @@
+// --- GESTION DE LA SESSION DE SPORT, DU WAKE LOCK & DU GRAPHIQUE ---
+
 let sessionTickInterval = null;
 let chartInstance = null;
+let wakeLockSentinel = null;
 
+// --- SCREEN WAKE LOCK API ---
+async function requestWakeLock() {
+    if ('wakeLock' in navigator) {
+        try {
+            wakeLockSentinel = await navigator.wakeLock.request('screen');
+            state.wakeLockActive = true;
+            wakeLockSentinel.addEventListener('release', () => {
+                wakeLockSentinel = null;
+                state.wakeLockActive = false;
+                updateWakeLockUI();
+            });
+            updateWakeLockUI();
+            debugLog("Screen Wake Lock actif", "info");
+        } catch (err) {
+            state.wakeLockActive = false;
+            updateWakeLockUI();
+            debugLog(`Screen Wake Lock non obtenu : ${err.message}`, "warn");
+        }
+    } else {
+        state.wakeLockActive = false;
+        updateWakeLockUI();
+    }
+}
+
+async function releaseWakeLock() {
+    if (wakeLockSentinel) {
+        try {
+            await wakeLockSentinel.release();
+        } catch (err) {
+            debugLog(`Erreur libération Wake Lock : ${err.message}`, "warn");
+        }
+        wakeLockSentinel = null;
+        state.wakeLockActive = false;
+        updateWakeLockUI();
+    }
+}
+
+// Réacquisition automatique du Wake Lock si l'utilisateur revient sur l'application pendant une séance
+document.addEventListener('visibilitychange', async () => {
+    if (document.visibilityState === 'visible' && state.isRecording && !wakeLockSentinel) {
+        await requestWakeLock();
+    }
+});
+
+function updateWakeLockUI() {
+    const kioskBadge = document.getElementById('kioskWakeLockBadge');
+    const settingsStatus = document.getElementById('wakeLockSettingStatus');
+
+    if (kioskBadge) {
+        if (state.wakeLockActive) {
+            kioskBadge.classList.add('active');
+            kioskBadge.innerText = '☀️ Écran verrouillé actif';
+        } else {
+            kioskBadge.classList.remove('active');
+        }
+    }
+
+    if (settingsStatus) {
+        if (!('wakeLock' in navigator)) {
+            settingsStatus.innerText = "Non supporté par ce navigateur (réglez la mise en veille dans les paramètres Android)";
+            settingsStatus.style.color = "var(--text-secondary)";
+        } else if (state.wakeLockActive) {
+            settingsStatus.innerText = "Actif (maintien de l'écran pendant la séance)";
+            settingsStatus.style.color = "var(--success)";
+        } else {
+            settingsStatus.innerText = "Disponible (s'active automatiquement au début d'une séance)";
+            settingsStatus.style.color = "var(--accent)";
+        }
+    }
+}
+
+// --- INITIALISATION GRAPHIQUE ---
 function initChart() {
-    const ctx = document.getElementById('mainChart').getContext('2d');
+    const canvas = document.getElementById('mainChart');
+    if (!canvas) return;
+    
+    // Si Chart.js n'est pas encore disponible
+    if (typeof Chart === 'undefined') {
+        console.warn('Chart.js non disponible au moment de initChart');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
     Chart.defaults.color = '#94a3b8';
     chartInstance = new Chart(ctx, {
         type: 'line',
@@ -24,10 +108,17 @@ function initChart() {
     });
 }
 
-function startSession() {
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
+function renderChartData() {
+    if (!chartInstance) return;
+    const displayLen = 600;
+    chartInstance.data.labels = state.sessionData.time.slice(-displayLen).map(t => formatTime(t));
+    chartInstance.data.datasets[0].data = state.sessionData.watts.slice(-displayLen);
+    chartInstance.data.datasets[1].data = state.sessionData.speed.slice(-displayLen);
+    chartInstance.update();
+}
 
+// --- DÉBUT DE SESSION ---
+function startSession() {
     state.isRecording = true;
     state.startTime = new Date();
     state.pedalingTime = 0; 
@@ -43,48 +134,91 @@ function startSession() {
     state.sessionData.watts = []; 
     state.sessionData.speed = [];
     
-    startBtn.style.display = 'none';
-    stopBtn.style.display = 'block';
+    // Réinitialisation des affichages Dashboard
+    const resetFields = {
+        'wattsMaxVal': '0',
+        'speedMaxVal': '0.0',
+        'caloriesVal': '0',
+        'workVal': '0',
+        'durationVal': '00:00',
+        'distanceVal': '📏 0.0 km',
+        'avgWattsVal': 'Moyenne: 0 W',
+        'avgSpeedVal': 'Moyenne: 0.0 km/h'
+    };
+    for (const [id, val] of Object.entries(resetFields)) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    }
+
+    // Réinitialisation des affichages Compteur
+    const kioskResetFields = {
+        'kioskDurationVal': '00:00',
+        'kioskDistanceVal': '0.00',
+        'kioskAvgWattsVal': '0',
+        'kioskAvgSpeedVal': '0.0'
+    };
+    for (const [id, val] of Object.entries(kioskResetFields)) {
+        const el = document.getElementById(id);
+        if (el) el.innerText = val;
+    }
+
+    if (chartInstance) {
+        chartInstance.data.labels = [];
+        chartInstance.data.datasets[0].data = [];
+        chartInstance.data.datasets[1].data = [];
+        chartInstance.update();
+    }
     
-    // Reset extra stats display
-    document.getElementById('wattsMaxVal').innerText = "0";
-    document.getElementById('speedMaxVal').innerText = "0.0";
-    document.getElementById('caloriesVal').innerText = "0";
-    document.getElementById('workVal').innerText = "0";
+    // Activer Screen Wake Lock
+    requestWakeLock();
     
+    // Synchroniser les contrôles (afficher bouton TERMINER sur Compteur & Dashboard)
+    syncControlsUI();
+    
+    if (sessionTickInterval) clearInterval(sessionTickInterval);
     sessionTickInterval = setInterval(tick, 1000);
 }
 
+// --- FIN DE SESSION ---
 function stopSession() {
-    const startBtn = document.getElementById('startBtn');
-    const stopBtn = document.getElementById('stopBtn');
-    const connectionControls = document.getElementById('connectionControls');
-    const sessionControls = document.getElementById('sessionControls');
-    const statusTxt = document.getElementById('status');
-
     state.isRecording = false;
     state.stopTime = new Date();
-    clearInterval(sessionTickInterval);
+    if (sessionTickInterval) clearInterval(sessionTickInterval);
     
     if (state.isDemoMode) {
-        clearInterval(state.demoInterval);
+        if (state.demoInterval) clearInterval(state.demoInterval);
         state.isDemoMode = false;
     }
     
-    startBtn.style.display = 'block';
-    stopBtn.style.display = 'none';
-    document.getElementById('workoutBanner').classList.remove('active');
+    // Libérer Screen Wake Lock
+    releaseWakeLock();
     
-    connectionControls.style.display = 'flex';
-    sessionControls.style.display = 'none';
-    statusTxt.innerText = "Prêt à scanner";
+    // Masquer les bandeaux d'entraînement
+    const wb = document.getElementById('workoutBanner');
+    if (wb) wb.classList.remove('active');
+    const kwb = document.getElementById('kioskWorkoutBanner');
+    if (kwb) kwb.classList.remove('active');
+    
+    updateBleStatusUI('disconnected');
+    syncControlsUI();
     
     saveSessionToHistory();
 }
 
+// --- TICK DE MESURE (CHAQUE SECONDE) ---
 function tick() {
     if (!state.isRecording) return;
 
+    // Détection de données périmées (Stale data timeout de 4 secondes)
+    if (!state.isDemoMode && state.device && state.lastBleDataTime) {
+        if (Date.now() - state.lastBleDataTime > 4000) {
+            if (state.bleStatus !== 'stale') {
+                updateBleStatusUI('stale', state.bleDeviceName);
+            }
+        }
+    }
+
+    // Accumulation d'effort si mouvement détecté
     if (state.currentWatts > 0 || state.currentSpeed > 0.5) {
         state.pedalingTime += 1;
         state.sumWatts += state.currentWatts;
@@ -95,48 +229,104 @@ function tick() {
     if (state.pedalingTime > 0) {
         state.maxWatts = Math.max(state.maxWatts, state.currentWatts);
         state.maxSpeed = Math.max(state.maxSpeed, state.currentSpeed);
-        const workKJ = state.sumWatts / 1000;
-        const caloriesKcal = workKJ * 1.0;
+        const avgW = Math.round(state.sumWatts / state.pedalingTime);
+        const avgS = (state.sumSpeed / state.pedalingTime).toFixed(1);
+        const distKm = (state.totalDistanceM / 1000).toFixed(2);
+        const timeStr = formatTime(state.pedalingTime);
+        const workKJ = Math.round(state.sumWatts / 1000);
+        const caloriesKcal = workKJ;
 
-        document.getElementById('avgWattsVal').innerText = `Moyenne: ${Math.round(state.sumWatts / state.pedalingTime)} W`;
-        document.getElementById('avgSpeedVal').innerText = `Moyenne: ${(state.sumSpeed / state.pedalingTime).toFixed(1)} km/h`;
-        document.getElementById('durationVal').innerText = formatTime(state.pedalingTime);
-        document.getElementById('distanceVal').innerText = `${(state.totalDistanceM / 1000).toFixed(2)} km`;
-        
-        // Update new stats cards
-        document.getElementById('wattsMaxVal').innerText = Math.round(state.maxWatts);
-        document.getElementById('speedMaxVal').innerText = state.maxSpeed.toFixed(1);
-        document.getElementById('caloriesVal').innerText = Math.round(caloriesKcal);
-        document.getElementById('workVal').innerText = Math.round(workKJ);
-        
-        const wCard = document.getElementById('wattsCard');
-        let zoneStr = 'Z1';
-        if (state.currentWatts > state.ftp * 1.2) zoneStr = 'Z6';
-        else if (state.currentWatts > state.ftp * 1.05) zoneStr = 'Z5';
-        else if (state.currentWatts > state.ftp * 0.9) zoneStr = 'Z4';
-        else if (state.currentWatts > state.ftp * 0.75) zoneStr = 'Z3';
-        else if (state.currentWatts > state.ftp * 0.55) zoneStr = 'Z2';
-        
-        wCard.style.borderBottom = `4px solid ${getZoneColor(zoneStr)}`;
+        // Mise à jour Dashboard
+        const avgWattsEl = document.getElementById('avgWattsVal');
+        const avgSpeedEl = document.getElementById('avgSpeedVal');
+        const durationEl = document.getElementById('durationVal');
+        const distanceEl = document.getElementById('distanceVal');
+        const wattsMaxEl = document.getElementById('wattsMaxVal');
+        const speedMaxEl = document.getElementById('speedMaxVal');
+        const caloriesEl = document.getElementById('caloriesVal');
+        const workEl = document.getElementById('workVal');
+
+        if (avgWattsEl) avgWattsEl.innerText = `Moyenne: ${avgW} W`;
+        if (avgSpeedEl) avgSpeedEl.innerText = `Moyenne: ${avgS} km/h`;
+        if (durationEl) durationEl.innerText = timeStr;
+        if (distanceEl) distanceEl.innerText = `📏 ${distKm} km`;
+        if (wattsMaxEl) wattsMaxEl.innerText = Math.round(state.maxWatts);
+        if (speedMaxEl) speedMaxEl.innerText = state.maxSpeed.toFixed(1);
+        if (caloriesEl) caloriesEl.innerText = caloriesKcal;
+        if (workEl) workEl.innerText = workKJ;
+
+        // Mise à jour Compteur Kiosk
+        const kioskDurationEl = document.getElementById('kioskDurationVal');
+        const kioskDistanceEl = document.getElementById('kioskDistanceVal');
+        const kioskAvgWattsEl = document.getElementById('kioskAvgWattsVal');
+        const kioskAvgSpeedEl = document.getElementById('kioskAvgSpeedVal');
+
+        if (kioskDurationEl) kioskDurationEl.innerText = timeStr;
+        if (kioskDistanceEl) kioskDistanceEl.innerText = distKm;
+        if (kioskAvgWattsEl) kioskAvgWattsEl.innerText = avgW;
+        if (kioskAvgSpeedEl) kioskAvgSpeedEl.innerText = avgS;
     }
 
+    // Mise à jour de la télémétrie de workout
     updateWorkoutBanner();
+    updateKioskWorkoutBanner();
 
+    // Enregistrement inconditionnel des données brutes pour l'export TCX et l'historique
     state.sessionData.time.push(state.pedalingTime);
     state.sessionData.watts.push(state.currentWatts);
     state.sessionData.speed.push(state.currentSpeed);
 
-    const displayLen = 600;
-    chartInstance.data.labels = state.sessionData.time.slice(-displayLen).map(t => formatTime(t));
-    chartInstance.data.datasets[0].data = state.sessionData.watts.slice(-displayLen);
-    chartInstance.data.datasets[1].data = state.sessionData.speed.slice(-displayLen);
-    chartInstance.update();
+    // OPTIMISATION PERFORMANCE :
+    // On ne recalcule et ne rafraîchit Chart.js QUE si l'onglet Dashboard est visible !
+    if (state.currentTab === 'dashboard') {
+        renderChartData();
+    }
 }
 
-// Expose variables and functions globally
+// Mise à jour du bandeau compact en mode Compteur
+function updateKioskWorkoutBanner() {
+    const banner = document.getElementById('kioskWorkoutBanner');
+    if (!banner) return;
+
+    if (!state.activeWorkout || !state.isRecording) {
+        banner.classList.remove('active');
+        return;
+    }
+    banner.classList.add('active');
+
+    const nameEl = document.getElementById('kioskWorkoutNameDisplay');
+    const timeEl = document.getElementById('kioskWorkoutTimeDisplay');
+    const targetEl = document.getElementById('kioskWorkoutTargetDisplay');
+
+    if (state.currentWorkoutStepIndex >= state.activeWorkout.steps.length) {
+        if (nameEl) nameEl.innerText = "Entraînement terminé";
+        if (timeEl) timeEl.innerText = "";
+        if (targetEl) targetEl.innerText = "Roule libre";
+        banner.style.borderLeftColor = "var(--success)";
+        return;
+    }
+
+    const steps = state.activeWorkout.steps;
+    const step = steps[state.currentWorkoutStepIndex];
+    const timeRemaining = step.duration - state.workoutStepTimeElapsed;
+
+    if (nameEl) nameEl.innerText = `${step.desc} (${state.currentWorkoutStepIndex + 1}/${steps.length})`;
+    if (timeEl) timeEl.innerText = formatTime(timeRemaining);
+    if (targetEl) targetEl.innerText = `Cible : Zone ${step.type} (${getZoneTargetString(step.type)})`;
+
+    const color = getZoneColor(step.type);
+    banner.style.borderLeftColor = color;
+}
+
+// Expositions globales
 window.sessionTickInterval = sessionTickInterval;
 window.chartInstance = chartInstance;
 window.initChart = initChart;
 window.startSession = startSession;
 window.stopSession = stopSession;
 window.tick = tick;
+window.renderChartData = renderChartData;
+window.requestWakeLock = requestWakeLock;
+window.releaseWakeLock = releaseWakeLock;
+window.updateWakeLockUI = updateWakeLockUI;
+window.updateKioskWorkoutBanner = updateKioskWorkoutBanner;

@@ -89,7 +89,7 @@ function selectWorkout(workoutId) {
     }
     renderWorkoutStepList();
     if (window.switchTab) {
-        window.switchTab('dashboard');
+        window.switchTab(state.currentTab === 'dashboard' ? 'dashboard' : 'compteur');
     }
 }
 
