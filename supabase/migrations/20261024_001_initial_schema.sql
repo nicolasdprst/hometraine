@@ -51,7 +51,8 @@ CREATE INDEX IF NOT EXISTS idx_sessions_owner_started ON public.sessions(owner_i
 
 -- ----------------------------------------------------------------------------
 -- 3. TABLE : SESSION_DATA (Séries temporelles pour exports TCX)
--- Stocke les mesures détaillées en JSONB compact { time: [], watts: [], speed: [] }
+-- Stocke les mesures détaillées en JSONB compact
+-- { time: [], timestamps: [], watts: [], speed: [], distance: [] }
 -- Évite 1 requête HTTP par seconde et préserve les quotas gratuits de Supabase
 -- ----------------------------------------------------------------------------
 CREATE TABLE IF NOT EXISTS public.session_data (

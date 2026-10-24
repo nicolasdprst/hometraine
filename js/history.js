@@ -27,12 +27,12 @@ async function saveSessionToHistory() {
     if (!profileId) throw new Error('Aucun profil associé à la séance');
     const sessionId = state.currentSessionId || createCycloDashId();
 
-    const avgWatts = Math.round(state.sumWatts / state.pedalingTime);
+    const avgWatts = state.powerMeasureTime > 0 ? Math.round(state.sumWatts / state.powerMeasureTime) : 0;
     const maxWatts = Math.round(state.maxWatts);
-    const avgSpeed = parseFloat((state.sumSpeed / state.pedalingTime).toFixed(1));
+    const avgSpeed = state.speedMeasureTime > 0 ? parseFloat((state.sumSpeed / state.speedMeasureTime).toFixed(1)) : 0;
     const maxSpeed = parseFloat(state.maxSpeed.toFixed(1));
     const totalDistM = state.totalDistanceM;
-    const totalWorkKJ = Math.round(state.sumWatts / 1000);
+    const totalWorkKJ = Math.round(state.totalWorkJ / 1000);
     const energyKcal = totalWorkKJ;
 
     const sessionSummary = {
@@ -40,7 +40,9 @@ async function saveSessionToHistory() {
         profile_id: profileId,
         started_at: state.startTime ? state.startTime.toISOString() : new Date().toISOString(),
         ended_at: state.stopTime ? state.stopTime.toISOString() : new Date().toISOString(),
-        duration_seconds: Math.round(state.pedalingTime),
+        duration_seconds: Math.round(state.elapsedTime),
+        active_duration_seconds: Math.round(state.pedalingTime),
+        reliable_data_seconds: Math.round(state.reliableDataTime),
         distance_meters: totalDistM,
         avg_power_watts: avgWatts,
         max_power_watts: maxWatts,
@@ -55,8 +57,10 @@ async function saveSessionToHistory() {
 
     const detailedData = {
         time: [...state.sessionData.time],
+        timestamps: [...(state.sessionData.timestamps || [])],
         watts: [...state.sessionData.watts],
-        speed: [...state.sessionData.speed]
+        speed: [...state.sessionData.speed],
+        distance: [...(state.sessionData.distance || [])]
     };
 
     // 1. Sauvegarde locale immédiate (historique résumés)
@@ -385,8 +389,11 @@ function downloadTCX(sessionId, session, detailedData) {
         const elapsed = Number(detailedData.time[i]) || 0;
         const previousElapsed = i > 0 ? (Number(detailedData.time[i - 1]) || 0) : 0;
         const deltaSeconds = Math.max(0, elapsed - previousElapsed);
-        if (detailedData.distance && Number.isFinite(detailedData.distance[i])) currentDist = detailedData.distance[i];
-        else if (Number.isFinite(s)) currentDist += (s / 3.6) * deltaSeconds;
+        if (detailedData.distance && Number.isFinite(detailedData.distance[i])) {
+            currentDist = detailedData.distance[i];
+        } else if (Number.isFinite(s)) {
+            currentDist += (s / 3.6) * deltaSeconds;
+        }
         const recordedTimestamp = detailedData.timestamps && detailedData.timestamps[i];
         const ptDate = recordedTimestamp ? new Date(recordedTimestamp) : new Date(startDate.getTime() + elapsed * 1000);
         const powerXml = Number.isFinite(w) ? `\n          <Watts>${Math.round(w)}</Watts>` : '';
