@@ -3,6 +3,7 @@
 let sessionTickInterval = null;
 let chartInstance = null;
 let wakeLockSentinel = null;
+let lastBackupAt = 0;
 
 // --- SCREEN WAKE LOCK API ---
 async function requestWakeLock() {
@@ -120,8 +121,9 @@ function renderChartData() {
 // --- DÉBUT DE SESSION ---
 function startSession() {
     state.isRecording = true;
-    state.currentSessionId = (typeof crypto !== 'undefined' && crypto.randomUUID) ? crypto.randomUUID() : ('sess_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7));
+    state.currentSessionId = createCycloDashId();
     state.sessionProfileId = (window.profilesManager && window.profilesManager.activeProfile) ? window.profilesManager.activeProfile.id : 'default-profile';
+    lastBackupAt = 0;
     state.startTime = new Date();
     state.pedalingTime = 0; 
     state.totalDistanceM = 0; 
@@ -279,9 +281,10 @@ function tick() {
     state.sessionData.speed.push(state.currentSpeed);
 
     // Sauvegarde locale intermédiaire toutes les 30s pour limiter les pertes en cas d'arrêt accidentel
-    if (state.pedalingTime > 0 && state.pedalingTime % 30 === 0) {
+    if (state.pedalingTime - lastBackupAt >= 30) {
+        lastBackupAt = state.pedalingTime;
         try {
-            localStorage.setItem('cyclodash_active_session_backup', JSON.stringify({
+            const stored = localDataStore.setJSON('active_session_backup', {
                 id: state.currentSessionId,
                 profile_id: state.sessionProfileId,
                 startTime: state.startTime,
@@ -292,8 +295,11 @@ function tick() {
                 maxWatts: state.maxWatts,
                 maxSpeed: state.maxSpeed,
                 sessionData: state.sessionData
-            }));
-        } catch(e) {}
+            });
+            if (!stored) throw new Error('quota local dépassé');
+        } catch(e) {
+            console.error('Sauvegarde de secours impossible', e);
+        }
     }
 
     // OPTIMISATION PERFORMANCE :
@@ -304,11 +310,9 @@ function tick() {
 }
 
 // Vérification au démarrage d'une éventuelle séance interrompue par crash/batterie
-function checkInterruptedSession() {
+async function checkInterruptedSession() {
     try {
-        const backupRaw = localStorage.getItem('cyclodash_active_session_backup');
-        if (!backupRaw) return;
-        const b = JSON.parse(backupRaw);
+        const b = localDataStore.getJSON('active_session_backup', null);
         if (b && b.pedalingTime > 30) {
             const dateStr = b.startTime ? new Date(b.startTime).toLocaleString() : 'récente';
             if (confirm(`Une séance interrompue (${formatTime(b.pedalingTime)}) du ${dateStr} a été retrouvée.\nVoulez-vous la restaurer et l'enregistrer dans votre historique ?`)) {
@@ -325,10 +329,10 @@ function checkInterruptedSession() {
                 state.sessionData = b.sessionData || { time: [], watts: [], speed: [] };
 
                 if (window.saveSessionToHistory) {
-                    window.saveSessionToHistory();
+                    await window.saveSessionToHistory();
                 }
             } else {
-                localStorage.removeItem('cyclodash_active_session_backup');
+                localDataStore.remove('active_session_backup');
             }
         }
     } catch(e) {

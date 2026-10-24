@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cyclodash-v15';
+const CACHE_NAME = 'cyclodash-v18-supabase-stability';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -12,6 +12,7 @@ const ASSETS = [
   './js/vendor/chart.umd.js',
   './js/state.js',
   './js/supabase.js',
+  './js/storage.js',
   './js/profiles.js',
   './js/bluetooth.js',
   './js/workout.js',
@@ -53,23 +54,15 @@ self.addEventListener('activate', (e) => {
   self.clients.claim();
 });
 
-// Stratégie Network-First (Réseau d'abord, cache en secours hors ligne)
+// Cache strictement réservé aux ressources publiques de l'application.
 self.addEventListener('fetch', (e) => {
   if (e.request.method !== 'GET') return;
+  const requestUrl = new URL(e.request.url);
+  if (requestUrl.origin !== self.location.origin) return;
 
-  e.respondWith(
-    fetch(e.request)
-      .then((response) => {
-        if (response && response.status === 200) {
-          const responseClone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(e.request, responseClone);
-          });
-        }
-        return response;
-      })
-      .catch(() => {
-        return caches.match(e.request);
-      })
-  );
+  if (e.request.mode === 'navigate') {
+    e.respondWith(fetch(e.request).catch(() => caches.match('./index.html')));
+    return;
+  }
+  e.respondWith(caches.match(e.request).then(cached => cached || fetch(e.request)));
 });

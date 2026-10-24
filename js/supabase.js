@@ -8,6 +8,8 @@ const SUPABASE_CONFIG = {
 
 const supabaseClient = {
     session: null,
+    refreshPromise: null,
+    readyPromise: Promise.resolve(),
 
     init() {
         try {
@@ -18,7 +20,10 @@ const supabaseClient = {
                 if (this.session && this.session.expires_at) {
                     const nowSec = Math.floor(Date.now() / 1000);
                     if (this.session.expires_at - nowSec < 600) {
-                        this.refreshToken().catch(e => console.warn('Refresh token silencieux ignoré:', e));
+                        this.readyPromise = this.refreshToken().catch(e => {
+                            console.warn('Refresh token silencieux différé:', e.message);
+                            return null;
+                        });
                     }
                 }
             }
@@ -27,7 +32,11 @@ const supabaseClient = {
         }
     },
 
-    saveSession(sess) {
+    ready() {
+        return this.readyPromise;
+    },
+
+    persistAuthSession(sess) {
         this.session = sess;
         if (sess) {
             localStorage.setItem('cyclodash_supabase_session', JSON.stringify(sess));
@@ -37,7 +46,9 @@ const supabaseClient = {
     },
 
     isAuthenticated() {
-        return !!(this.session && this.session.access_token && this.session.user);
+        if (!(this.session && this.session.access_token && this.session.user)) return false;
+        if (!this.session.expires_at) return true;
+        return this.session.expires_at > Math.floor(Date.now() / 1000) || !!this.session.refresh_token;
     },
 
     getUser() {
@@ -51,10 +62,18 @@ const supabaseClient = {
         };
         if (withAuth && this.session && this.session.access_token) {
             headers['Authorization'] = `Bearer ${this.session.access_token}`;
-        } else {
-            headers['Authorization'] = `Bearer ${SUPABASE_CONFIG.anonKey}`;
         }
         return headers;
+    },
+
+    async parseResponse(res) {
+        const text = await res.text();
+        if (!text) return null;
+        const contentType = res.headers && res.headers.get ? (res.headers.get('content-type') || '') : '';
+        if (contentType.includes('json')) {
+            try { return JSON.parse(text); } catch (error) { throw new Error('Réponse JSON Supabase invalide'); }
+        }
+        try { return JSON.parse(text); } catch (error) { return text; }
     },
 
     // --- AUTHENTIFICATION ---
@@ -64,12 +83,12 @@ const supabaseClient = {
             headers: this.getHeaders(false),
             body: JSON.stringify({ email, password })
         });
-        const data = await res.json();
+        const data = await this.parseResponse(res) || {};
         if (!res.ok) throw new Error(data.error_description || data.message || "Erreur d'inscription");
         
         // Si session retournée immédiatement (email auto-confirmé)
         if (data.access_token) {
-            this.saveSession(data);
+            this.persistAuthSession(data);
         }
         return data;
     },
@@ -80,29 +99,51 @@ const supabaseClient = {
             headers: this.getHeaders(false),
             body: JSON.stringify({ email, password })
         });
-        const data = await res.json();
+        const data = await this.parseResponse(res) || {};
         if (!res.ok) throw new Error(data.error_description || data.message || "Identifiants invalides");
-        this.saveSession(data);
+        this.persistAuthSession(data);
         return data;
     },
 
     async refreshToken() {
         if (!this.session || !this.session.refresh_token) return null;
-        try {
+        if (this.refreshPromise) return this.refreshPromise;
+        this.refreshPromise = (async () => {
             const res = await fetch(`${SUPABASE_CONFIG.url}/auth/v1/token?grant_type=refresh_token`, {
                 method: 'POST',
                 headers: this.getHeaders(false),
                 body: JSON.stringify({ refresh_token: this.session.refresh_token })
             });
-            const data = await res.json();
+            const data = await this.parseResponse(res) || {};
             if (res.ok && data.access_token) {
-                this.saveSession(data);
+                if (!data.refresh_token) data.refresh_token = this.session.refresh_token;
+                this.persistAuthSession(data);
                 return data;
             }
-        } catch (err) {
-            console.warn("Échec refresh token Supabase:", err);
+            const error = new Error(data.message || data.error_description || `Refresh refusé (${res.status})`);
+            error.status = res.status;
+            throw error;
+        })();
+        try {
+            return await this.refreshPromise;
+        } finally {
+            this.refreshPromise = null;
         }
-        return null;
+    },
+
+    async ensureAccessToken() {
+        if (!this.session || !this.session.user) throw new Error('Non authentifié');
+        const now = Math.floor(Date.now() / 1000);
+        if (!this.session.expires_at || this.session.expires_at - now > 60) return this.session.access_token;
+        try {
+            const refreshed = await this.refreshToken();
+            if (!refreshed) throw new Error('Session expirée');
+            return refreshed.access_token;
+        } catch (error) {
+            // Une panne réseau conserve la session pour une nouvelle tentative hors ligne.
+            if (error.status === 400 || error.status === 401 || error.status === 403) this.persistAuthSession(null);
+            throw error;
+        }
     },
 
     async signOut() {
@@ -116,11 +157,12 @@ const supabaseClient = {
                 console.warn("Logout error:", e);
             }
         }
-        this.saveSession(null);
+        this.persistAuthSession(null);
     },
 
     // --- REQUÊTE REST GÉNÉRIQUE AVEC AUTO-REFRESH 401 ---
     async restRequest(endpoint, options = {}) {
+        await this.ensureAccessToken();
         let headers = {
             ...this.getHeaders(true),
             ...(options.headers || {})
@@ -133,7 +175,11 @@ const supabaseClient = {
 
         // Si 401 Unauthorized, tenter un refresh token une fois
         if (res.status === 401 && this.session && this.session.refresh_token) {
-            const refreshed = await this.refreshToken();
+            let refreshed = null;
+            try { refreshed = await this.refreshToken(); } catch (error) {
+                if (error.status === 400 || error.status === 401 || error.status === 403) this.persistAuthSession(null);
+                throw error;
+            }
             if (refreshed) {
                 headers = {
                     ...this.getHeaders(true),
@@ -146,38 +192,37 @@ const supabaseClient = {
             }
         }
 
+        if (res.status === 401) this.persistAuthSession(null);
+
         if (!res.ok) {
-            let errorText = await res.text();
-            let parsed = null;
-            try { parsed = JSON.parse(errorText); } catch(e) {}
-            const msg = (parsed && (parsed.message || parsed.hint || parsed.details)) || errorText || `HTTP ${res.status}`;
+            const parsed = await this.parseResponse(res);
+            const msg = (parsed && typeof parsed === 'object' && (parsed.message || parsed.hint || parsed.details || parsed.error_description)) || (typeof parsed === 'string' ? parsed : '') || `HTTP ${res.status}`;
             const err = new Error(msg);
             err.status = res.status;
             err.code = parsed ? parsed.code : null;
             throw err;
         }
 
-        // Si la réponse n'a pas de contenu (204 No Content)
-        if (res.status === 204) return null;
-        return await res.json();
+        return await this.parseResponse(res);
     },
 
     // --- PROFILS CRUD ---
     async fetchProfiles() {
         if (!this.isAuthenticated()) return [];
-        return await this.restRequest('profiles?select=*&is_archived=eq.false&order=created_at.asc');
+        return await this.restRequest('profiles?select=*&order=created_at.asc');
     },
 
     async createProfile(profile) {
         if (!this.isAuthenticated()) throw new Error("Non authentifié");
         const user = this.getUser();
         const payload = {
-            id: profile.id || crypto.randomUUID(),
+            id: profile.id,
             owner_id: user.id,
             display_name: profile.display_name.trim(),
             ftp_watts: parseInt(profile.ftp_watts) || 200,
             avatar_color: profile.avatar_color || '#3b82f6',
-            is_archived: false
+            is_archived: !!profile.is_archived,
+            updated_at: profile.updated_at || new Date().toISOString()
         };
         const res = await this.restRequest('profiles', {
             method: 'POST',
@@ -189,10 +234,13 @@ const supabaseClient = {
 
     async updateProfile(id, updates) {
         if (!this.isAuthenticated()) throw new Error("Non authentifié");
+        const allowed = ['display_name', 'ftp_watts', 'avatar_color', 'is_archived', 'updated_at'];
+        const payload = {};
+        allowed.forEach(key => { if (updates[key] !== undefined) payload[key] = updates[key]; });
         const res = await this.restRequest(`profiles?id=eq.${id}`, {
             method: 'PATCH',
             headers: { 'Prefer': 'return=representation' },
-            body: JSON.stringify(updates)
+            body: JSON.stringify(payload)
         });
         return Array.isArray(res) ? res[0] : res;
     },
@@ -206,6 +254,11 @@ const supabaseClient = {
         return await this.restRequest(`profiles?id=eq.${id}`, {
             method: 'DELETE'
         });
+    },
+
+    async countSessionsForProfile(id) {
+        const result = await this.restRequest(`sessions?profile_id=eq.${encodeURIComponent(id)}&select=id`);
+        return Array.isArray(result) ? result.length : 0;
     },
 
     // --- SÉANCES & SÉRIES TEMPORELLES ---

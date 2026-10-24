@@ -11,6 +11,7 @@ Ce dossier regroupe la logique applicative du projet en JavaScript standard (ES6
 - `workout.js` : Logique des séances par intervalles. Calcule les cibles de puissance en fonction de la FTP de l'utilisateur, fait avancer les étapes et met à jour la barre de progression.
 - `session.js` : Gestion de l'enregistrement en cours (départ, pause, arrêt), cumul de la distance et des kilojoules, et mise à jour du tracé temps réel sur Chart.js.
 - `history.js` : Persistance des séances terminées dans le LocalStorage, affichage sous forme de liste et export des données au format JSON.
+- `storage.js` : Espaces locaux isolés par compte Supabase et stockage IndexedDB des séries temporelles volumineuses.
 - `main.js` : Point d'entrée de l'application. Initialise les écouteurs d'événements du DOM, la navigation entre onglets et l'enregistrement du Service Worker.
 
 ---
