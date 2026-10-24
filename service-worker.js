@@ -1,4 +1,5 @@
-const CACHE_NAME = 'cyclodash-v19-ux-v3';
+// Version: cyclodash-v20-analytics-v4 (upgraded from cyclodash-v19-ux-v3)
+const CACHE_NAME = 'cyclodash-v20-analytics-v4';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -10,6 +11,7 @@ const ASSETS = [
   './css/compteur.css',
   './css/responsive.css',
   './css/ux-v3.css',
+  './css/session-detail.css',
   './js/vendor/chart.umd.js',
   './js/state.js',
   './js/supabase.js',
@@ -17,8 +19,10 @@ const ASSETS = [
   './js/profiles.js',
   './js/bluetooth.js',
   './js/workout.js',
-  './js/session.js',
+  './js/analytics.js',
   './js/history.js',
+  './js/session-detail.js',
+  './js/session.js',
   './js/main.js',
   './manifest.json',
   './icons/cyclodash.svg',
