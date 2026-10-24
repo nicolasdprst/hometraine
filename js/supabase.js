@@ -324,8 +324,10 @@ const supabaseClient = {
 
     async deleteSession(sessionId) {
         if (!this.isAuthenticated()) throw new Error("Non authentifié");
-        return await this.restRequest(`sessions?id=eq.${sessionId}`, {
-            method: 'DELETE'
+        const ownerId = this.getUser().id;
+        return await this.restRequest(`sessions?id=eq.${encodeURIComponent(sessionId)}&owner_id=eq.${encodeURIComponent(ownerId)}`, {
+            method: 'DELETE',
+            headers: { 'Prefer': 'return=representation' }
         });
     }
 };

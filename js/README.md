@@ -10,9 +10,11 @@ Ce dossier regroupe la logique applicative du projet en JavaScript standard (ES6
 - `bluetooth.js` : Gestion de l'API Web Bluetooth. Recherche de périphériques, connexion GATT, abonnement aux caractéristiques de puissance (service `0x1818`) et de vitesse/cadence (service `0x1816`), et décodage des buffers binaires.
 - `workout.js` : Logique des séances par intervalles. Calcule les cibles de puissance en fonction de la FTP de l'utilisateur, fait avancer les étapes et met à jour la barre de progression.
 - `session.js` : Gestion de l'enregistrement en cours (départ, pause, arrêt), cumul de la distance et des kilojoules, et mise à jour du tracé temps réel sur Chart.js.
-- `history.js` : Persistance des séances terminées dans le LocalStorage, affichage sous forme de liste et export des données au format JSON.
+- `history.js` : Historique individuel, synchronisation, suppression différée hors ligne et export TCX.
 - `storage.js` : Espaces locaux isolés par compte Supabase et stockage IndexedDB des séries temporelles volumineuses.
 - `main.js` : Point d'entrée de l'application. Initialise les écouteurs d'événements du DOM, la navigation entre onglets et l'enregistrement du Service Worker.
+
+Au lancement, aucun profil n'est activé automatiquement : le cycliste doit confirmer son profil dans le sélecteur plein écran. Les suppressions hors ligne sont conservées dans une file `deletion_queue` isolée par compte jusqu'à leur confirmation Supabase.
 
 ---
 

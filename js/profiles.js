@@ -22,6 +22,8 @@ window.createCycloDashId = createCycloDashId;
 const profilesManager = {
     profiles: [],
     activeProfile: null,
+    lastProfileId: null,
+    selectionRequired: true,
 
     // Initialisation au chargement
     async init() {
@@ -56,20 +58,15 @@ const profilesManager = {
             }
         }
 
-        // Restaurer le profil précédemment actif
-        const savedActiveId = localDataStore.getJSON('active_profile_id', null);
-        let selected = this.profiles.find(p => p.id === savedActiveId && !p.is_archived);
-        if (!selected && this.profiles.length > 0) {
-            selected = this.profiles.find(p => !p.is_archived) || this.profiles[0];
-        }
-
-        if (selected) {
-            this.applyProfile(selected, false);
-        } else {
-            this.showPicker();
-        }
-
+        // Le dernier profil sert uniquement de repère visuel : aucun cycliste
+        // n'est restauré automatiquement après un lancement/rechargement.
+        this.lastProfileId = localDataStore.getJSON('active_profile_id', null);
+        this.activeProfile = null;
+        state.activeProfile = null;
+        this.selectionRequired = true;
         this.renderProfilesListInSettings();
+        this.updateProfileBadgeUI();
+        this.showPicker(true);
     },
 
     loadLocalProfiles() {
@@ -158,6 +155,8 @@ const profilesManager = {
 
         this.activeProfile = profile;
         state.activeProfile = profile;
+        this.lastProfileId = profile.id;
+        this.selectionRequired = false;
         localDataStore.setJSON('active_profile_id', profile.id);
 
         // Appliquer la FTP du profil
@@ -184,28 +183,48 @@ const profilesManager = {
     // Mise à jour des badges dans l'interface (Compteur topbar & Header)
     updateProfileBadgeUI() {
         const p = this.activeProfile;
-        if (!p) return;
 
         // Badge dans le mode Compteur
         const kioskProfileBadge = document.getElementById('kioskProfileBadge');
         const kioskProfileName = document.getElementById('kioskProfileName');
         const kioskProfileAvatar = document.getElementById('kioskProfileAvatar');
 
-        if (kioskProfileBadge) {
-            kioskProfileBadge.style.display = 'flex';
-        }
+        if (kioskProfileBadge) kioskProfileBadge.style.display = p ? 'flex' : 'none';
         if (kioskProfileName) {
-            kioskProfileName.innerText = p.display_name;
+            kioskProfileName.innerText = p ? p.display_name : 'Profil requis';
         }
         if (kioskProfileAvatar) {
-            kioskProfileAvatar.style.backgroundColor = p.avatar_color || '#3b82f6';
-            kioskProfileAvatar.innerText = this.getInitials(p.display_name);
+            kioskProfileAvatar.style.backgroundColor = p ? validProfileColor(p.avatar_color) : '#475569';
+            kioskProfileAvatar.innerText = p ? this.getInitials(p.display_name) : 'CD';
         }
+        const kioskProfileFtp = document.getElementById('kioskProfileFtp');
+        if (kioskProfileFtp) kioskProfileFtp.textContent = p ? `FTP ${p.ftp_watts || 200} W` : 'Sélection requise';
+
+        const globalProfileAvatar = document.getElementById('globalProfileAvatar');
+        const globalProfileName = document.getElementById('globalProfileName');
+        const globalProfileFtp = document.getElementById('globalProfileFtp');
+        if (globalProfileAvatar) {
+            globalProfileAvatar.style.backgroundColor = p ? validProfileColor(p.avatar_color) : '#475569';
+            globalProfileAvatar.textContent = p ? this.getInitials(p.display_name) : 'CD';
+        }
+        if (globalProfileName) globalProfileName.textContent = p ? p.display_name : 'Aucun profil';
+        if (globalProfileFtp) globalProfileFtp.textContent = p ? `FTP ${p.ftp_watts || 200} W` : 'Sélection requise';
+
+        const historyTitle = document.getElementById('historyTitle');
+        const settingsTitle = document.getElementById('settingsTitle');
+        if (historyTitle) historyTitle.textContent = p ? `Historique de ${p.display_name}` : 'Historique';
+        if (settingsTitle) settingsTitle.textContent = p ? `Paramètres de ${p.display_name}` : 'Paramètres';
+
+        const startLabel = p ? `▶ Démarrer — ${p.display_name}` : '▶ Sélectionner un profil';
+        const startBtn = document.getElementById('startBtn');
+        const kioskStartBtn = document.getElementById('kioskStartBtn');
+        if (startBtn) startBtn.textContent = startLabel;
+        if (kioskStartBtn) kioskStartBtn.textContent = startLabel;
 
         // Badge dans Paramètres
         const settingsCurrentProfile = document.getElementById('settingsCurrentProfile');
         if (settingsCurrentProfile) {
-            settingsCurrentProfile.innerText = `${p.display_name} (FTP: ${p.ftp_watts || 200} W)`;
+            settingsCurrentProfile.innerText = p ? `${p.display_name} · FTP ${p.ftp_watts || 200} W` : 'Aucun profil sélectionné';
         }
     },
 
@@ -217,7 +236,7 @@ const profilesManager = {
     },
 
     // Affichage / Masquage du sélecteur "Qui pédale aujourd'hui ?"
-    showPicker() {
+    showPicker(required = false) {
         if (state.isRecording) {
             alert("Impossible de changer de profil pendant une séance en cours. Terminez la séance d'abord.");
             return;
@@ -226,13 +245,17 @@ const profilesManager = {
         const overlay = document.getElementById('profilePickerOverlay');
         if (!overlay) return;
 
+        if (required) this.selectionRequired = true;
         this.renderPickerCards();
+        overlay.classList.toggle('selection-required', this.selectionRequired || !this.activeProfile);
         overlay.style.display = 'flex';
     },
 
     hidePicker() {
+        if (this.selectionRequired || !this.activeProfile) return false;
         const overlay = document.getElementById('profilePickerOverlay');
         if (overlay) overlay.style.display = 'none';
+        return true;
     },
 
     renderPickerCards() {
@@ -243,8 +266,10 @@ const profilesManager = {
         const activeProfiles = this.profiles.filter(p => !p.is_archived);
 
         activeProfiles.forEach(p => {
-            const card = document.createElement('div');
+            const card = document.createElement('button');
+            card.type = 'button';
             card.className = 'profile-card' + (this.activeProfile && this.activeProfile.id === p.id ? ' active' : '');
+            if (card.setAttribute) card.setAttribute('aria-label', `Choisir ${p.display_name}, FTP ${p.ftp_watts || 200} watts`);
             card.onclick = () => {
                 this.applyProfile(p, true);
             };
@@ -263,10 +288,10 @@ const profilesManager = {
             ftp.textContent = `⚡ FTP : ${p.ftp_watts || 200} W`;
             info.append(name, ftp);
             card.append(avatar, info);
-            if (this.activeProfile && this.activeProfile.id === p.id) {
+            if (!this.activeProfile && this.lastProfileId === p.id) {
                 const active = document.createElement('span');
                 active.className = 'profile-active-tag';
-                active.textContent = 'Actif';
+                active.textContent = 'Dernier utilisé';
                 card.appendChild(active);
             }
             container.appendChild(card);
@@ -347,10 +372,12 @@ const profilesManager = {
         }
         await this.updateProfile(id, { is_archived: true });
 
-        // Si le profil actif vient d'être archivé, basculer sur un autre
+        // Si le profil actif vient d'être archivé, exiger un nouveau choix.
         if (this.activeProfile && this.activeProfile.id === id) {
-            const next = this.profiles.find(p => !p.is_archived);
-            if (next) this.applyProfile(next, true);
+            this.activeProfile = null;
+            state.activeProfile = null;
+            this.updateProfileBadgeUI();
+            this.showPicker(true);
         }
     },
 
@@ -377,9 +404,10 @@ const profilesManager = {
         this.saveLocalProfiles();
 
         if (this.activeProfile && this.activeProfile.id === id) {
-            const next = this.profiles.find(item => !item.is_archived);
-            if (next) this.applyProfile(next, true);
-            else this.showPicker();
+            this.activeProfile = null;
+            state.activeProfile = null;
+            this.updateProfileBadgeUI();
+            this.showPicker(true);
         }
 
         this.renderProfilesListInSettings();
@@ -393,7 +421,7 @@ const profilesManager = {
 
         this.profiles.forEach(p => {
             const row = document.createElement('div');
-            row.className = 'list-item' + (p.is_archived ? ' profile-archived' : '');
+            row.className = 'list-item profile-settings-row' + (p.is_archived ? ' profile-archived' : '');
             row.style.display = 'flex';
             row.style.alignItems = 'center';
             row.style.justifyContent = 'space-between';

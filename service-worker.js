@@ -1,4 +1,4 @@
-const CACHE_NAME = 'cyclodash-v18-supabase-stability';
+const CACHE_NAME = 'cyclodash-v19-ux-v3';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -9,6 +9,7 @@ const ASSETS = [
   './css/dashboard.css',
   './css/compteur.css',
   './css/responsive.css',
+  './css/ux-v3.css',
   './js/vendor/chart.umd.js',
   './js/state.js',
   './js/supabase.js',
