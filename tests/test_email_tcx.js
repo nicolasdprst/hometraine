@@ -100,6 +100,7 @@ function testTcxAndBackendSecurityContract() {
     assert(core.includes("secret: googleScriptSecret"));
     assert(core.includes('tcx_base64: base64Utf8(tcx)'));
     assert(core.includes("gateway?.ok"));
+    assert(core.includes("replace(/[^A-Za-z0-9_-]/g, '-')"), 'le nom TCX doit neutraliser le fuseau et les caractères spéciaux');
     assert(!source('js/email.js').includes('GOOGLE_SCRIPT_SECRET'), 'aucun secret Google dans le navigateur');
     assert(!core.includes('RESEND_API_KEY'));
     assert(!sendFunction.includes('RESEND_API_KEY'));
