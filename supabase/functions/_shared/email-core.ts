@@ -133,7 +133,11 @@ export async function processDelivery(admin: any, deliveryId: string): Promise<R
     const text = `Bonjour,\n\nTa séance de home trainer du ${date} a bien été enregistrée.\n\nVoici ton récapitulatif :\n\n- ${summary.join('\n- ')}\n\nRetrouve ton fichier d’activité TCX en pièce jointe.\n\nPour ajouter cette séance à Strava :\n1. Télécharge la pièce jointe.\n2. Ouvre ${STRAVA_UPLOAD_URL}\n3. Sélectionne le fichier TCX téléchargé.\n4. Valide l’import.\n\nBonne séance et à bientôt !\n\nL’équipe HomeTraine`;
     const rows = summary.map(line => `<li style="margin:6px 0">${escapeHtml(line)}</li>`).join('');
     const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:600px;margin:auto;padding:24px"><div style="background:#fff;border-radius:12px;padding:24px"><h1 style="font-size:22px">Ta séance est prête !</h1><p>Bonjour,</p><p>Ta séance de home trainer du ${escapeHtml(date)} a bien été enregistrée.</p><ul>${rows}</ul><p>Retrouve ton véritable fichier d’activité TCX en pièce jointe.</p><a href="${STRAVA_UPLOAD_URL}" style="display:inline-block;background:#fc4c02;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:bold">Importer sur Strava</a><p style="margin-top:22px">Bonne séance et à bientôt !<br>L’équipe HomeTraine</p></div></div></body></html>`;
-    const filename = `HomeTraine_${session.started_at.replace(/[:.]/g, '-')}.tcx`;
+    // Une date PostgreSQL peut contenir un fuseau comme "+00:00". Garder
+    // uniquement les caractères autorisés par la passerelle Apps Script afin
+    // que le nom de la pièce jointe soit valide quel que soit le fuseau.
+    const safeStartedAt = String(session.started_at).replace(/[^A-Za-z0-9_-]/g, '-');
+    const filename = `HomeTraine_${safeStartedAt}.tcx`;
     const googleScriptUrl = Deno.env.get('GOOGLE_SCRIPT_URL');
     const googleScriptSecret = Deno.env.get('GOOGLE_SCRIPT_SECRET');
     if (!googleScriptUrl || !googleScriptSecret) throw new Error('Configuration Google Apps Script incomplète');
