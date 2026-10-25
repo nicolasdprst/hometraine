@@ -1,40 +1,59 @@
 # Module JavaScript (js/)
 
-Ce dossier regroupe la logique applicative du projet en JavaScript standard (ES6+), sans bundler ni framework externe.
+Ce dossier regroupe l'ensemble de la logique applicative de CycloDash en JavaScript standard (ES6+), sans bundler, sans transpilation et sans framework externe.
 
 ---
 
 ## Organisation des fichiers
 
-- `state.js` : Déclaration de l'état global (`state`) et de la configuration des entraînements (`config.workoutsDB`). Tous les modules viennent y lire ou écrire les données courantes.
-- `bluetooth.js` : Gestion de l'API Web Bluetooth. Recherche de périphériques, connexion GATT, abonnement aux caractéristiques de puissance (service `0x1818`) et de vitesse/cadence (service `0x1816`), et décodage des buffers binaires.
-- `workout.js` : Logique des séances par intervalles. Calcule les cibles de puissance en fonction de la FTP de l'utilisateur, fait avancer les étapes et met à jour la barre de progression.
-- `session.js` : Gestion de l'enregistrement en cours (départ, pause, arrêt), cumul de la distance et des kilojoules, et mise à jour du tracé temps réel sur Chart.js.
-- `history.js` : Historique individuel, synchronisation, suppression différée hors ligne et export TCX.
-- `email.js` : Fenêtre d'envoi TCX, statuts utilisateur et file locale idempotente pour les retours de connexion.
-- `analytics.js` / `session-detail.js` : Calculs d'analyse et fiche détaillée d'une séance, avec accès au téléchargement et à l'envoi e-mail.
-- `storage.js` : Espaces locaux isolés par compte Supabase et stockage IndexedDB des séries temporelles volumineuses.
-- `main.js` : Point d'entrée de l'application. Initialise les écouteurs d'événements du DOM, la navigation entre onglets et l'enregistrement du Service Worker.
-
-Au lancement, aucun profil n'est activé automatiquement : le cycliste doit confirmer son profil dans le sélecteur plein écran. Les suppressions hors ligne sont conservées dans une file `deletion_queue` isolée par compte jusqu'à leur confirmation Supabase.
-
----
-
-## Flux de données
-
-1. Le capteur physique (ou le générateur démo) émet des données brutes.
-2. `bluetooth.js` décode les octets et met à jour `state.currentWatts` et `state.currentSpeed`.
-3. `session.js` calcule les moyennes, met à jour le chronomètre et injecte les points dans le graphique Chart.js.
-4. `workout.js` compare la puissance instantanée à la zone cible de l'intervalle et fait défiler la roadmap.
-5. À l'arrêt, `history.js` sérialise l'objet de session et ses mesures, puis lance la synchronisation sans bloquer la sauvegarde locale.
-6. Si l'option e-mail du profil était active à cet instant, `email.js` conserve la demande jusqu'à la synchronisation ; la file serveur Supabase prend ensuite le relais.
+| Fichier | Rôle & Responsabilité |
+| :--- | :--- |
+| **`state.js`** | Déclaration de l'état réactif global (`state`), des seuils de fraîcheur et de la base d'entraînements (`config.workoutsDB`). Fournit également le générateur d'identifiants UUID v4 standard `createCycloDashId()`. |
+| **`profiles.js`** | Gestion multi-profils (mode Kiosk) : modale de sélection obligatoire au démarrage (*"Qui pédale aujourd'hui ?"*), création/édition de profils (nom, FTP, couleur d'avatar, e-mail de notification), calcul des initiales et synchronisation avec Supabase. |
+| **`bluetooth.js`** | Connexion Web Bluetooth Low Energy (GATT). Abonnement aux services normalisés `0x1818` (Cycling Power) et `0x1816` (Cycling Speed & Cadence), décodage des trames binaires, gestion des pertes de signal (`stale` après 6s) et simulateur de cycliste (mode démo). |
+| **`session.js`** | Gestion de la séance en cours (démarrage, pause, arrêt). Horloge monotone, intégration trapézoïdale de l'énergie mécanique ($J \rightarrow kJ/kcal$) et de la distance, maintien de l'écran actif via l'API Screen Wake Lock et mise à jour du tracé en temps réel sur Chart.js. |
+| **`workout.js`** | Moteur des séances d'entraînement par intervalles. Calcul des cibles de puissance personnalisées selon la FTP du profil, avancement des paliers d'effort et mise à jour de la jauge et de la roadmap. |
+| **`storage.js`** | Couche de stockage local hybride :<br>- `localDataStore` : partitionnement étanche des données par compte (`cyclodash:<ownerId>:<clé>`) avec support invité (`anonymous`).<br>- `cycloDb` : base IndexedDB (`cyclodash-data-v2`) dédiée aux séries temporelles haute fréquence de chaque seconde. |
+| **`history.js`** | Historique des séances du profil actif, calcul des résumés, génération de fichiers XML TCX complets (compatibles Strava / Garmin), gestion de la file locale d'envoi cloud (`sync_queue`) et de suppression différée (`deletion_queue`). |
+| **`analytics.js`** | Moteur mathématique d'analyse de performance (`CycloAnalytics`) : moyennes pondérées par le temps (tolérance aux échantillons irréguliers), variabilité, écart-type, coefficient de variation, détection des meilleurs efforts (5s, 1min, 5min, 20min), répartition par zones FTP et downsampling pour graphiques fluides. |
+| **`session-detail.js`** | Contrôleur de la vue d'analyse détaillée d'une séance : chargement des données (IndexedDB puis secours Supabase), instanciation des graphiques Chart.js de puissance et de vitesse, rendu des badges de records et dialogue de confirmation. |
+| **`email.js`** | Module d'expédition TCX par e-mail (`CycloEmail`) : dialogue d'envoi unitaire, suivi des statuts (`pending`, `sending`, `sent`, `failed`), file locale hors-ligne avec réexpédition automatique au retour du réseau (`online`). |
+| **`supabase.js`** | Client REST et d'authentification natif pour Supabase sans SDK externe (conçu pour fonctionner sur les navigateurs légers et anciennes tablettes). Gestion des tokens JWT, auto-refresh transparent sur erreur 401 et requêtes CRUD avec Row Level Security. |
+| **`main.js`** | Point d'entrée de l'application : initialisation au chargement du DOM, routage des onglets (Compteur, Dashboard, Entraînements, Historique, Paramètres), gestion des notifications toast et orchestration du cycle de vie du Service Worker. |
+| **`vendor/chart.umd.js`** | Bibliothèque Chart.js autonome pré-packagée en UMD pour fonctionner entièrement hors-ligne sans connexion Internet. |
 
 ---
 
-## Notes techniques
+## Flux de données et cycle de vie d'une séance
 
-- **Calibration du capteur Misuro B+ (Elite Turno)** : La constante `WHEEL_CIRCUMFERENCE_M` dans `state.js` est réglée à `0.165` mètres en raison de la démultiplication interne du volant d'inertie.
-- **États Bluetooth** : `disconnected`, `connecting`, `connected` et `stale` décrivent uniquement la liaison. Ils sont indépendants de `sessionStatus` (`idle`, `recording`, `stopped`) ; terminer une séance ne ferme donc pas la connexion GATT.
-- **Fraîcheur des mesures** : puissance et vitesse ont chacune leur horodatage et un seuil initial de 5 s. L'absence de toute notification pendant 6 s place la liaison en `stale`. Une valeur périmée est enregistrée comme absente (`null`) et n'est plus intégrée dans la distance ou le travail.
-- **Temps de séance** : `elapsedTime` vient de l'horloge monotone, `pedalingTime` mesure l'activité détectée et `reliableDataTime` le temps effectivement couvert par au moins une mesure fraîche. Les callbacks d'affichage ne définissent pas la durée.
-- **Ajout d'un entraînement** : Il suffit d'ajouter une entrée dans l'objet `config.workoutsDB` de `state.js`. L'interface de l'onglet Entraînements la prendra en compte au chargement suivant.
+```text
+[Home Trainer BLE / Démo]
+         │  (Trames binaires 0x1818 & 0x1816)
+         ▼
+  bluetooth.js ─────────────► state.js (currentWatts, currentSpeed, timestamps)
+         │                         │
+         ▼                         ▼
+   session.js ◄────────────── workout.js (comparaison cible FTP)
+  (Intégration J / m,              │
+   Horloge monotone,               ▼
+   Screen Wake Lock)         UI Compteur & Dashboard (affichage direct)
+         │
+         ▼ (À l'arrêt de la séance)
+   history.js
+   ├── IndexedDB (cycloDb) ──► Sauvegarde des séries temporelles (1 pt / sec)
+   ├── LocalStorage ─────────► Résumé de session (moyennes, max, kJ, durée)
+   └── File sync_queue ──────► Envoi asynchrone vers Supabase
+                                   │
+                                   ▼ (Si e-mail configuré)
+                             email.js ──► Edge Function ──► Passerelle Gmail
+```
+
+---
+
+## Notes techniques importantes
+
+- **Sélection de profil obligatoire** : Au lancement, aucun profil n'est sélectionné par défaut afin d'éviter d'enregistrer une séance sur le compte d'un autre membre du foyer. Le cycliste valide son profil dans l'overlay Kiosk.
+- **Calibration Elite Turno (Misuro B+)** : La constante `WHEEL_CIRCUMFERENCE_M` dans `state.js` est réglée à `0.165` mètre en raison de la démultiplication interne du volant d'inertie.
+- **États de la liaison Bluetooth** : Les statuts `disconnected`, `connecting`, `connected` et `stale` qualifient exclusivement la couche BLE. Ils sont totalement indépendants de l'état de la séance (`sessionStatus` : `idle`, `recording`, `stopped`). L'arrêt d'une séance ne coupe pas la connexion Bluetooth.
+- **Fraîcheur des données et seuil stale** : La puissance et la vitesse possèdent un horodatage individuel avec un seuil de validité de 5 secondes (`POWER_FRESHNESS_MS`). Tout silence radio supérieur à 6 secondes (`BLE_NOTIFICATION_STALE_MS`) passe la liaison en `stale` et remplace les valeurs par des tirets pour ne pas fausser les calculs d'énergie.
+- **Horloge monotone vs Horloge système** : La durée réelle d'effort (`elapsedTime`) est dérivée de `performance.now()`, protégeant les calculs contre les ajustements d'heure système. Le temps `pedalingTime` ne comptabilise que les secondes avec activité détectée.
