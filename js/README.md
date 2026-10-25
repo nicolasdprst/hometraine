@@ -11,6 +11,8 @@ Ce dossier regroupe la logique applicative du projet en JavaScript standard (ES6
 - `workout.js` : Logique des séances par intervalles. Calcule les cibles de puissance en fonction de la FTP de l'utilisateur, fait avancer les étapes et met à jour la barre de progression.
 - `session.js` : Gestion de l'enregistrement en cours (départ, pause, arrêt), cumul de la distance et des kilojoules, et mise à jour du tracé temps réel sur Chart.js.
 - `history.js` : Historique individuel, synchronisation, suppression différée hors ligne et export TCX.
+- `email.js` : Fenêtre d'envoi TCX, statuts utilisateur et file locale idempotente pour les retours de connexion.
+- `analytics.js` / `session-detail.js` : Calculs d'analyse et fiche détaillée d'une séance, avec accès au téléchargement et à l'envoi e-mail.
 - `storage.js` : Espaces locaux isolés par compte Supabase et stockage IndexedDB des séries temporelles volumineuses.
 - `main.js` : Point d'entrée de l'application. Initialise les écouteurs d'événements du DOM, la navigation entre onglets et l'enregistrement du Service Worker.
 
@@ -24,7 +26,8 @@ Au lancement, aucun profil n'est activé automatiquement : le cycliste doit conf
 2. `bluetooth.js` décode les octets et met à jour `state.currentWatts` et `state.currentSpeed`.
 3. `session.js` calcule les moyennes, met à jour le chronomètre et injecte les points dans le graphique Chart.js.
 4. `workout.js` compare la puissance instantanée à la zone cible de l'intervalle et fait défiler la roadmap.
-5. À l'arrêt, `history.js` sérialise l'objet de session et l'enregistre dans le LocalStorage.
+5. À l'arrêt, `history.js` sérialise l'objet de session et ses mesures, puis lance la synchronisation sans bloquer la sauvegarde locale.
+6. Si l'option e-mail du profil était active à cet instant, `email.js` conserve la demande jusqu'à la synchronisation ; la file serveur Supabase prend ensuite le relais.
 
 ---
 

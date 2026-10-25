@@ -25,6 +25,11 @@ async function saveSessionToHistory() {
     const activeProfile = window.profilesManager ? window.profilesManager.activeProfile : null;
     const profileId = state.sessionProfileId || (activeProfile ? activeProfile.id : null);
     if (!profileId) throw new Error('Aucun profil associé à la séance');
+    const sessionProfile = window.profilesManager
+        ? window.profilesManager.profiles.find(profile => profile.id === profileId)
+        : null;
+    const profileEmail = sessionProfile && sessionProfile.email_address ? String(sessionProfile.email_address).trim().toLowerCase() : null;
+    const automaticEmailRequested = !!(sessionProfile && sessionProfile.email_auto_send && profileEmail);
     const sessionId = state.currentSessionId || createCycloDashId();
 
     const avgWatts = state.powerMeasureTime > 0 ? Math.round(state.sumWatts / state.powerMeasureTime) : 0;
@@ -52,6 +57,9 @@ async function saveSessionToHistory() {
         energy_kcal: energyKcal,
         workout_name: (state.activeWorkout && state.activeWorkout.name) ? state.activeWorkout.name : 'Roule Libre',
         ftp_at_session_watts: state.ftp || null,
+        email_auto_requested: automaticEmailRequested,
+        email_recipient_snapshot: automaticEmailRequested ? profileEmail : null,
+        email_status: automaticEmailRequested ? 'pending' : null,
         synced: false,
         sync_status: 'pending'
     };
@@ -88,14 +96,20 @@ async function saveSessionToHistory() {
     // La sauvegarde de secours n'est supprimée qu'après les deux persistances.
     localDataStore.remove('active_session_backup');
 
+    // Cette opération ne fait qu'inscrire une demande locale et ne bloque jamais
+    // la sauvegarde de la séance. Le serveur possède sa propre file persistante.
+    if (window.CycloEmail) window.CycloEmail.enqueueAutomatic(sessionSummary);
+
     // 4. Synchronisation Supabase en arrière-plan
     if (window.supabaseClient && window.supabaseClient.isAuthenticated()) {
         try {
             await window.profilesManager.syncFromSupabase();
             await window.supabaseClient.saveSession(sessionSummary, detailedData);
             sessionSummary.synced = true;
+            sessionSummary.sync_status = 'synced';
             saveStoredSessions(sessions);
             console.log("Séance synchronisée avec Supabase avec succès");
+            if (window.CycloEmail) window.CycloEmail.processQueue();
         } catch (err) {
             console.warn("Échec synchronisation Supabase immédiate, mise en file d'attente:", err);
             enqueueSync(sessionId);
@@ -260,7 +274,10 @@ async function processSyncQueue() {
         await window.profilesManager.syncFromSupabase();
         await processDeletionQueue();
         let queue = localDataStore.getJSON('sync_queue', []);
-        if (queue.length === 0) return;
+        if (queue.length === 0) {
+            if (window.CycloEmail) await window.CycloEmail.processQueue();
+            return;
+        }
         const retryState = localDataStore.getJSON('sync_retry', {});
 
         const sessions = getStoredSessions();
@@ -300,6 +317,7 @@ async function processSyncQueue() {
             throw new Error('État de synchronisation non persisté');
         }
         renderHistory();
+        if (window.CycloEmail) window.CycloEmail.processQueue();
     })();
     try { return await syncQueuePromise; }
     catch (err) { console.warn("Erreur processSyncQueue:", err); }
@@ -413,6 +431,10 @@ async function renderHistory() {
         button.className = 'btn btn-sm btn-secondary';
         button.textContent = 'TCX';
         button.onclick = (e) => { e.stopPropagation(); exportTCXById(s.id); };
+        const emailButton = document.createElement('button');
+        emailButton.className = 'btn btn-sm btn-secondary email-action-btn';
+        emailButton.textContent = 'E-mail';
+        emailButton.onclick = (e) => { e.stopPropagation(); if (window.CycloEmail) window.CycloEmail.openForSession(s); };
         const menu = document.createElement('details');
         menu.className = 'history-menu';
         const menuButton = document.createElement('summary');
@@ -430,7 +452,13 @@ async function renderHistory() {
         });
         menuPanel.append(deleteButton);
         menu.append(menuButton, menuPanel);
-        actions.append(analyzeBtn, button, menu);
+        actions.append(analyzeBtn, button, emailButton, menu);
+        if (s.email_status) {
+            const emailBadge = document.createElement('span');
+            emailBadge.className = `email-status-badge ${s.email_status}`;
+            emailBadge.textContent = window.CycloEmail ? window.CycloEmail.statusText(s.email_status) : s.email_status;
+            content.appendChild(emailBadge);
+        }
         content.style.cursor = 'pointer';
         content.onclick = () => { if (window.SessionDetail) SessionDetail.open(s); };
         content.append(title, date, metrics);
@@ -554,8 +582,9 @@ async function exportTCXById(sessionId) {
     downloadTCX(sessionId, session, detailed);
 }
 
-// Génération et téléchargement effectif du XML TCX
-function downloadTCX(sessionId, session, detailedData) {
+// Génération TCX pure, réutilisable par les tests. Son équivalent serveur est
+// maintenu dans supabase/functions/_shared/email-core.ts.
+function buildTCX(session, detailedData) {
     const startDate = new Date(session.started_at || session.date || Date.now());
     const dateIso = startDate.toISOString();
     let trackpoints = '';
@@ -593,7 +622,7 @@ function downloadTCX(sessionId, session, detailedData) {
     const totalSeconds = session.duration_seconds || session.duration || len;
     const totalDistM = session.distance_meters || session.distance || currentDist;
 
-    const tcx = `<?xml version="1.0" encoding="UTF-8"?>
+    return `<?xml version="1.0" encoding="UTF-8"?>
 <TrainingCenterDatabase xsi:schemaLocation="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2 http://www.garmin.com/xmlschemas/TrainingCenterDatabasev2.xsd" xmlns:ns5="http://www.garmin.com/xmlschemas/Routing/v1" xmlns:ns3="http://www.garmin.com/xmlschemas/ActivityExtension/v2" xmlns:ns2="http://www.garmin.com/xmlschemas/UserProfile/v2" xmlns="http://www.garmin.com/xmlschemas/TrainingCenterDatabase/v2" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ns4="http://www.garmin.com/xmlschemas/ProfileExtension/v1">
   <Activities>
     <Activity Sport="Biking">
@@ -611,6 +640,13 @@ function downloadTCX(sessionId, session, detailedData) {
     </Activity>
   </Activities>
 </TrainingCenterDatabase>`;
+}
+
+// Génération et téléchargement effectif du XML TCX
+function downloadTCX(sessionId, session, detailedData) {
+    const startDate = new Date(session.started_at || session.date || Date.now());
+    const dateIso = startDate.toISOString();
+    const tcx = buildTCX(session, detailedData);
 
     const blob = new Blob([tcx], { type: "application/vnd.garmin.tcx+xml" });
     const url = URL.createObjectURL(blob);
@@ -719,7 +755,10 @@ async function migrateLegacyHistory() {
 window.saveSessionToHistory = saveSessionToHistory;
 window.renderHistory = renderHistory;
 window.exportTCXById = exportTCXById;
+window.buildTCX = buildTCX;
 window.migrateLegacyHistory = migrateLegacyHistory;
 window.processSyncQueue = processSyncQueue;
 window.processDeletionQueue = processDeletionQueue;
 window.deleteSessionById = deleteSessionById;
+window.getStoredSessions = getStoredSessions;
+window.saveStoredSessions = saveStoredSessions;

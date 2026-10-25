@@ -1,0 +1,23 @@
+/* Envoi TCX par e-mail — extension légère du design CycloDash */
+.profile-email-fields { margin-bottom: .9rem; padding: .85rem; background: rgba(59,130,246,.07); border: 1px solid rgba(96,165,250,.2); border-radius: .7rem; }
+.profile-email-fields > label:first-child, .email-modal label { display: block; margin-bottom: .4rem; color: var(--text-primary); font-size: .9rem; font-weight: 700; }
+.profile-email-fields > label span { color: var(--text-secondary); font-weight: 500; }
+.email-auto-option { min-height: 44px; display: flex; align-items: center; gap: .7rem; margin-top: .65rem; color: var(--text-primary); cursor: pointer; }
+.email-auto-option input { width: 22px; height: 22px; accent-color: var(--accent); flex: 0 0 auto; }
+.email-auto-option input:disabled + span { color: var(--text-secondary); }
+.form-help { margin-top: .35rem; color: var(--text-secondary); font-size: .78rem; line-height: 1.4; }
+.form-error { min-height: 1.2em; margin-top: .3rem; color: #fca5a5; font-size: .8rem; }
+.email-modal-icon { font-size: 1.8rem; }
+.email-session-summary { margin: .45rem 0 1rem; color: #cbd5e1; line-height: 1.5; }
+.email-attachment-row { margin-top: .8rem; padding: .7rem .8rem; display: flex; justify-content: space-between; gap: .75rem; background: #080c14; border: 1px solid #334155; border-radius: .6rem; color: #cbd5e1; }
+.email-attachment-row strong { color: #fff; }
+.email-send-status { min-height: 1.3em; margin-top: .65rem; font-size: .86rem; color: #cbd5e1; }
+.email-send-status.error { color: #fca5a5; }
+.email-send-status.success { color: #6ee7b7; }
+.email-action-btn { white-space: nowrap; }
+.email-status-badge { display: inline-flex; align-items: center; margin-left: .4rem; padding: .18rem .42rem; border-radius: 999px; font-size: .7rem; background: rgba(59,130,246,.14); color: #bfdbfe; }
+
+@media (max-width: 600px) {
+    .email-modal .confirm-dialog { max-height: calc(100vh - 2rem); overflow-y: auto; }
+    .email-action-btn { flex: 1; }
+}

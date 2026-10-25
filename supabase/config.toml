@@ -1,0 +1,5 @@
+[functions.send-session-email]
+verify_jwt = true
+
+[functions.process-email-queue]
+verify_jwt = false

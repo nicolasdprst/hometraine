@@ -222,6 +222,9 @@ const supabaseClient = {
             ftp_watts: parseInt(profile.ftp_watts) || 200,
             avatar_color: profile.avatar_color || '#3b82f6',
             is_archived: !!profile.is_archived,
+            email_address: profile.email_address || null,
+            email_auto_send: !!profile.email_auto_send,
+            email_format: 'tcx',
             updated_at: profile.updated_at || new Date().toISOString()
         };
         const res = await this.restRequest('profiles', {
@@ -234,7 +237,7 @@ const supabaseClient = {
 
     async updateProfile(id, updates) {
         if (!this.isAuthenticated()) throw new Error("Non authentifié");
-        const allowed = ['display_name', 'ftp_watts', 'avatar_color', 'is_archived', 'updated_at'];
+        const allowed = ['display_name', 'ftp_watts', 'avatar_color', 'is_archived', 'email_address', 'email_auto_send', 'email_format', 'updated_at'];
         const payload = {};
         allowed.forEach(key => { if (updates[key] !== undefined) payload[key] = updates[key]; });
         const res = await this.restRequest(`profiles?id=eq.${id}`, {
@@ -281,7 +284,9 @@ const supabaseClient = {
             total_work_kj: sessionSummary.total_work_kj,
             energy_kcal: sessionSummary.energy_kcal,
             workout_name: sessionSummary.workout_name || 'Roule Libre',
-            ftp_at_session_watts: sessionSummary.ftp_at_session_watts || null
+            ftp_at_session_watts: sessionSummary.ftp_at_session_watts || null,
+            email_auto_requested: !!sessionSummary.email_auto_requested,
+            email_recipient_snapshot: sessionSummary.email_recipient_snapshot || null
         };
 
         // 1. Sauvegarde idempotente du résumé de session (Upsert)
@@ -330,6 +335,31 @@ const supabaseClient = {
             method: 'DELETE',
             headers: { 'Prefer': 'return=representation' }
         });
+    },
+
+    async invokeFunction(name, payload) {
+        const accessToken = await this.ensureAccessToken();
+        const response = await fetch(`${SUPABASE_CONFIG.url}/functions/v1/${encodeURIComponent(name)}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'apikey': SUPABASE_CONFIG.anonKey,
+                'Authorization': `Bearer ${accessToken}`
+            },
+            body: JSON.stringify(payload)
+        });
+        const parsed = await this.parseResponse(response);
+        if (!response.ok) {
+            const error = new Error((parsed && (parsed.error || parsed.message)) || `Fonction ${name} indisponible (${response.status})`);
+            error.status = response.status;
+            throw error;
+        }
+        return parsed;
+    },
+
+    async fetchEmailDeliveries(sessionId) {
+        if (!this.isAuthenticated()) return [];
+        return await this.restRequest(`email_deliveries?session_id=eq.${encodeURIComponent(sessionId)}&select=*&order=created_at.desc`);
     }
 };
 

@@ -17,6 +17,15 @@ function validProfileColor(color) {
     return PROFILE_COLORS.includes(color) ? color : PROFILE_COLORS[0];
 }
 
+function normalizeProfileEmail(value) {
+    return String(value || '').trim().toLowerCase();
+}
+
+function isValidProfileEmail(value) {
+    const email = normalizeProfileEmail(value);
+    return email === '' || /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i.test(email);
+}
+
 window.createCycloDashId = createCycloDashId;
 
 const profilesManager = {
@@ -45,6 +54,9 @@ const profilesManager = {
                 display_name: 'Cycliste 1',
                 ftp_watts: state.ftp || 200,
                 avatar_color: '#3b82f6',
+                email_address: null,
+                email_auto_send: false,
+                email_format: 'tcx',
                 is_archived: false,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString(),
@@ -74,6 +86,9 @@ const profilesManager = {
         this.profiles = localDataStore.getJSON('profiles', []).map(profile => ({
             ...profile,
             avatar_color: validProfileColor(profile.avatar_color),
+            email_address: normalizeProfileEmail(profile.email_address) || null,
+            email_auto_send: !!profile.email_auto_send && isValidProfileEmail(profile.email_address) && !!profile.email_address,
+            email_format: 'tcx',
             owner_id: ownerId === 'anonymous' ? null : ownerId,
             sync_status: profile.sync_status || 'pending',
             updated_at: profile.updated_at || profile.created_at || new Date(0).toISOString()
@@ -304,14 +319,20 @@ const profilesManager = {
     },
 
     // Gestion CRUD
-    async createProfile(name, ftp, color) {
+    async createProfile(name, ftp, color, emailAddress = '', emailAutoSend = false) {
         if (!name || !name.trim()) throw new Error("Le nom du profil est requis");
+        const normalizedEmail = normalizeProfileEmail(emailAddress);
+        if (!isValidProfileEmail(normalizedEmail)) throw new Error("L'adresse e-mail n'est pas valide");
+        if (emailAutoSend && !normalizedEmail) throw new Error("Une adresse e-mail est requise pour l'envoi automatique");
 
         const newProfile = {
             id: createCycloDashId(),
             display_name: name.trim(),
             ftp_watts: parseInt(ftp) || 200,
             avatar_color: validProfileColor(color),
+            email_address: normalizedEmail || null,
+            email_auto_send: !!emailAutoSend,
+            email_format: 'tcx',
             is_archived: false,
             created_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
@@ -348,6 +369,17 @@ const profilesManager = {
         if (updates.ftp_watts) p.ftp_watts = parseInt(updates.ftp_watts) || 200;
         if (updates.avatar_color) p.avatar_color = validProfileColor(updates.avatar_color);
         if (typeof updates.is_archived === 'boolean') p.is_archived = updates.is_archived;
+        if (updates.email_address !== undefined) {
+            const normalizedEmail = normalizeProfileEmail(updates.email_address);
+            if (!isValidProfileEmail(normalizedEmail)) throw new Error("L'adresse e-mail n'est pas valide");
+            p.email_address = normalizedEmail || null;
+            if (!p.email_address) p.email_auto_send = false;
+        }
+        if (typeof updates.email_auto_send === 'boolean') {
+            if (updates.email_auto_send && !p.email_address) throw new Error("Une adresse e-mail est requise pour l'envoi automatique");
+            p.email_auto_send = updates.email_auto_send;
+        }
+        p.email_format = 'tcx';
         p.updated_at = new Date().toISOString();
         p.sync_status = 'pending';
 
@@ -444,7 +476,12 @@ const profilesManager = {
             const ftp = document.createElement('div');
             ftp.style.cssText = 'font-size:0.8rem;color:var(--text-secondary)';
             ftp.textContent = `⚡ FTP : ${p.ftp_watts || 200} W · ${p.sync_status === 'synced' ? '☁️' : '⏳'}`;
-            labels.append(name, ftp);
+            const email = document.createElement('div');
+            email.style.cssText = 'font-size:0.76rem;color:var(--text-secondary);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+            email.textContent = p.email_address
+                ? `✉ ${p.email_address}${p.email_auto_send ? ' · auto' : ''}`
+                : '✉ Aucun e-mail';
+            labels.append(name, ftp, email);
             identity.append(avatar, labels);
 
             const actions = document.createElement('div');
@@ -478,6 +515,9 @@ const profilesManager = {
         const editIdInput = document.getElementById('profileFormEditId');
         const nameInput = document.getElementById('profileFormNameInput');
         const ftpInput = document.getElementById('profileFormFtpInput');
+        const emailInput = document.getElementById('profileFormEmailInput');
+        const emailAutoInput = document.getElementById('profileFormEmailAutoInput');
+        const emailError = document.getElementById('profileFormEmailError');
 
         if (!box) return;
 
@@ -492,17 +532,32 @@ const profilesManager = {
             if (editIdInput) editIdInput.value = editId;
             if (nameInput) nameInput.value = p.display_name;
             if (ftpInput) ftpInput.value = p.ftp_watts || 200;
+            if (emailInput) emailInput.value = p.email_address || '';
+            if (emailAutoInput) emailAutoInput.checked = !!p.email_auto_send;
             this.selectFormColor(p.avatar_color || '#3b82f6');
         } else {
             if (titleEl) titleEl.innerText = "Nouveau Profil Cycliste";
             if (editIdInput) editIdInput.value = "";
             if (nameInput) nameInput.value = "";
             if (ftpInput) ftpInput.value = 200;
+            if (emailInput) emailInput.value = '';
+            if (emailAutoInput) emailAutoInput.checked = false;
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
             this.selectFormColor(colors[Math.floor(Math.random() * colors.length)]);
         }
 
         this.initColorPickers();
+        const updateEmailOption = () => {
+            const email = normalizeProfileEmail(emailInput ? emailInput.value : '');
+            const valid = isValidProfileEmail(email);
+            if (emailError) emailError.textContent = valid ? '' : 'Adresse e-mail invalide.';
+            if (emailAutoInput) {
+                emailAutoInput.disabled = !email || !valid;
+                if (emailAutoInput.disabled) emailAutoInput.checked = false;
+            }
+        };
+        if (emailInput) emailInput.oninput = updateEmailOption;
+        updateEmailOption();
         box.style.display = 'block';
         if (defaultBtns) defaultBtns.style.display = 'none';
         if (nameInput) nameInput.focus();
@@ -547,22 +602,42 @@ const profilesManager = {
         const editIdInput = document.getElementById('profileFormEditId');
         const nameInput = document.getElementById('profileFormNameInput');
         const ftpInput = document.getElementById('profileFormFtpInput');
+        const emailInput = document.getElementById('profileFormEmailInput');
+        const emailAutoInput = document.getElementById('profileFormEmailAutoInput');
+        const emailError = document.getElementById('profileFormEmailError');
 
         const editId = editIdInput ? editIdInput.value : '';
         const name = nameInput ? nameInput.value.trim() : '';
         const ftp = ftpInput ? parseInt(ftpInput.value) || 200 : 200;
         const color = this.getSelectedFormColor();
+        const emailAddress = normalizeProfileEmail(emailInput ? emailInput.value : '');
+        const emailAutoSend = !!(emailAutoInput && emailAutoInput.checked);
 
         if (!name) {
             alert("Veuillez renseigner un prénom ou nom pour le profil.");
             return;
         }
+        if (!isValidProfileEmail(emailAddress)) {
+            if (emailError) emailError.textContent = 'Adresse e-mail invalide.';
+            return;
+        }
+        if (emailAutoSend && !emailAddress) {
+            if (emailError) emailError.textContent = 'Ajoutez une adresse pour activer l’envoi automatique.';
+            return;
+        }
 
         try {
             if (editId) {
-                await this.updateProfile(editId, { display_name: name, ftp_watts: ftp, avatar_color: color });
+                await this.updateProfile(editId, {
+                    display_name: name,
+                    ftp_watts: ftp,
+                    avatar_color: color,
+                    email_address: emailAddress || null,
+                    email_auto_send: emailAutoSend,
+                    email_format: 'tcx'
+                });
             } else {
-                await this.createProfile(name, ftp, color);
+                await this.createProfile(name, ftp, color, emailAddress, emailAutoSend);
             }
             this.hideProfileForm();
             this.renderPickerCards();
@@ -573,3 +648,4 @@ const profilesManager = {
 };
 
 window.profilesManager = profilesManager;
+window.isValidProfileEmail = isValidProfileEmail;

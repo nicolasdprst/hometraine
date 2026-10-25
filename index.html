@@ -19,6 +19,7 @@
     <link rel="stylesheet" href="css/responsive.css">
     <link rel="stylesheet" href="css/ux-v3.css">
     <link rel="stylesheet" href="css/session-detail.css">
+    <link rel="stylesheet" href="css/email.css">
 </head>
 <body>
 
@@ -51,6 +52,16 @@
                 <div style="margin-bottom: 0.75rem;">
                     <label style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">FTP en Watts :</label>
                     <input type="number" id="profileFormFtpInput" class="form-control" placeholder="200" value="200" style="margin-top: 0.25rem;">
+                </div>
+                <div class="profile-email-fields">
+                    <label for="profileFormEmailInput">Adresse e-mail du cycliste <span>(facultative)</span></label>
+                    <input type="email" id="profileFormEmailInput" class="form-control" inputmode="email" autocomplete="email" placeholder="cycliste@exemple.fr">
+                    <p id="profileFormEmailError" class="form-error" role="alert"></p>
+                    <label class="email-auto-option" for="profileFormEmailAutoInput">
+                        <input type="checkbox" id="profileFormEmailAutoInput">
+                        <span>Recevoir automatiquement mes séances par e-mail</span>
+                    </label>
+                    <p class="form-help">Le fichier TCX sera envoyé lorsque la synchronisation cloud sera terminée.</p>
                 </div>
                 <div style="margin-bottom: 0.75rem;">
                     <label style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Couleur d'avatar :</label>
@@ -508,6 +519,23 @@
 
     <div id="appToast" class="app-toast" role="status" aria-live="polite" style="display:none;"></div>
 
+    <div id="emailSessionModal" class="confirm-overlay email-modal" role="dialog" aria-modal="true" aria-labelledby="emailSessionTitle" style="display:none;">
+        <div class="confirm-dialog">
+            <div class="email-modal-icon" aria-hidden="true">✉️</div>
+            <h2 id="emailSessionTitle">Envoyer la séance par e-mail</h2>
+            <p id="emailSessionSummary" class="email-session-summary"></p>
+            <label for="emailRecipientInput">Destinataire</label>
+            <input type="email" id="emailRecipientInput" class="form-control" inputmode="email" autocomplete="email" placeholder="cycliste@exemple.fr">
+            <p id="emailRecipientError" class="form-error" role="alert"></p>
+            <div class="email-attachment-row"><span>📎 Fichier joint</span><strong>Activité TCX</strong></div>
+            <p id="emailSendStatus" class="email-send-status" aria-live="polite"></p>
+            <div class="confirm-actions">
+                <button id="cancelEmailSessionBtn" class="btn btn-secondary">Annuler</button>
+                <button id="sendEmailSessionBtn" class="btn btn-primary">Envoyer</button>
+            </div>
+        </div>
+    </div>
+
     <!-- BATCH 4 : Vue d'analyse de séance (overlay plein écran) -->
     <div id="sessionAnalyticsView" role="dialog" aria-modal="true" aria-label="Analyse de séance">
         <div id="analyticsLoader">
@@ -526,6 +554,7 @@
     <script src="js/workout.js"></script>
     <script src="js/analytics.js"></script>
     <script src="js/history.js"></script>
+    <script src="js/email.js"></script>
     <script src="js/session-detail.js"></script>
     <script src="js/session.js"></script>
     <script src="js/bluetooth.js"></script>
