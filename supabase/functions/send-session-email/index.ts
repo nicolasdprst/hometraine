@@ -8,7 +8,7 @@ Deno.serve(async request => {
   if (request.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (request.method !== 'POST') return json({ error: 'Méthode refusée' }, 405);
   try {
-    env('RESEND_API_KEY'); env('RESEND_FROM');
+    env('GOOGLE_SCRIPT_URL'); env('GOOGLE_SCRIPT_SECRET');
     const authorization = request.headers.get('Authorization') || '';
     if (!authorization.startsWith('Bearer ')) return json({ error: 'Authentification requise' }, 401);
     const userClient = createClient(env('SUPABASE_URL'), publicKey(), { global: { headers: { Authorization: authorization } } });
@@ -36,7 +36,7 @@ Deno.serve(async request => {
       : `manual/${user.id}/${profile.id}/${session.id}/${requestId}`.slice(0, 256);
     const { data: existing, error: existingError } = await admin.from('email_deliveries').select('*').eq('idempotency_key', idempotencyKey).maybeSingle();
     if (existingError) throw existingError;
-    if (existing && ['accepted', 'delivered'].includes(existing.status)) return json({ status: existing.status, delivery_id: existing.id });
+    if (existing && existing.status === 'sent') return json({ status: existing.status, delivery_id: existing.id });
 
     let delivery = existing;
     if (!delivery) {
@@ -51,7 +51,7 @@ Deno.serve(async request => {
       if ((dailyResult.count || 0) >= 30) return json({ error: 'Quota quotidien atteint : 30 e-mails' }, 429);
       const { data, error } = await admin.from('email_deliveries').insert({
         owner_id: user.id, session_id: session.id, profile_id: profile.id, recipient,
-        send_type: sendType, file_format: 'tcx', idempotency_key: idempotencyKey, status: 'queued'
+        send_type: sendType, file_format: 'tcx', idempotency_key: idempotencyKey, status: 'pending'
       }).select('*').single();
       if (error) throw error;
       delivery = data;

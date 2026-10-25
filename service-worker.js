@@ -1,5 +1,5 @@
-// Version: cyclodash-v21-email-tcx (upgraded from cyclodash-v20-analytics-v4 and cyclodash-v19-ux-v3)
-const CACHE_NAME = 'cyclodash-v21-email-tcx';
+// Version: cyclodash-v22-gmail-tcx (upgraded from cyclodash-v21-email-tcx, cyclodash-v20-analytics-v4 and cyclodash-v19-ux-v3)
+const CACHE_NAME = 'cyclodash-v22-gmail-tcx';
 const ASSETS = [
   './index.html',
   './style.css',

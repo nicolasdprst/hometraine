@@ -9,9 +9,9 @@ Deno.serve(async request => {
   // Une exécution interrompue ne doit pas bloquer définitivement un travail.
   await admin.from('email_deliveries').update({
     status: 'failed', last_error: 'Traitement interrompu, nouvelle tentative planifiée', next_attempt_at: new Date().toISOString()
-  }).eq('status', 'processing').lt('updated_at', new Date(Date.now() - 600000).toISOString());
+  }).eq('status', 'sending').lt('updated_at', new Date(Date.now() - 600000).toISOString());
   const { data: jobs, error } = await admin.from('email_deliveries').select('id')
-    .in('status', ['queued', 'failed']).lt('attempt_count', 8).lte('next_attempt_at', new Date().toISOString())
+    .in('status', ['pending', 'failed']).lt('attempt_count', 8).lte('next_attempt_at', new Date().toISOString())
     .order('next_attempt_at', { ascending: true }).limit(10);
   if (error) return json({ error: error.message }, 500);
   const results = [];

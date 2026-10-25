@@ -65,8 +65,9 @@
         const labels = {
             pending: 'Envoi en attente de connexion',
             sending: 'Envoi en cours…',
+            sent: 'E-mail accepté par Gmail',
             accepted: 'E-mail accepté pour expédition',
-            delivered: 'E-mail livré',
+            delivered: 'E-mail précédemment marqué livré',
             failed: 'Échec de l’envoi — réessayer'
         };
         return labels[status] || '';
@@ -97,10 +98,10 @@
                         send_type: item.send_type,
                         request_id: item.request_id
                     });
-                    if (!result || !['accepted', 'delivered'].includes(result.status)) {
-                        throw new Error((result && result.error) || 'Le prestataire n’a pas accepté l’e-mail');
+                    if (!result || result.status !== 'sent') {
+                        throw new Error((result && result.error) || 'Gmail n’a pas accepté l’e-mail');
                     }
-                    updateLocalStatus(item.session_id, result && result.status === 'delivered' ? 'delivered' : 'accepted');
+                    updateLocalStatus(item.session_id, 'sent');
                 } catch (error) {
                     item.attempts = (item.attempts || 0) + 1;
                     item.last_error = error.message;
@@ -127,9 +128,11 @@
             const deliveries = await window.supabaseClient.fetchEmailDeliveries(session.id);
             if (!Array.isArray(deliveries) || deliveries.length === 0) return;
             const remote = deliveries[0];
-            const localStatus = remote.status === 'accepted' || remote.status === 'delivered'
-                ? remote.status
-                : (['failed', 'bounced', 'complained'].includes(remote.status) ? 'failed' : 'pending');
+            const localStatus = ['sent', 'accepted', 'delivered'].includes(remote.status)
+                ? 'sent'
+                : (['failed', 'bounced', 'complained'].includes(remote.status)
+                    ? 'failed'
+                    : (['sending', 'processing'].includes(remote.status) ? 'sending' : 'pending'));
             updateLocalStatus(session.id, localStatus, remote.last_error);
             const status = document.getElementById('emailSendStatus');
             if (selectedSessionId === session.id && status) status.textContent = statusText(localStatus);
@@ -185,8 +188,8 @@
                 const refreshed = getSessions().find(item => item.id === session.id);
                 const message = statusText(refreshed && refreshed.email_status) || 'Envoi en attente de connexion';
                 if (status) status.textContent = message;
-                if (window.showAppToast) window.showAppToast(message, refreshed && refreshed.email_status === 'accepted' ? 'success' : 'warning');
-                if (refreshed && refreshed.email_status === 'accepted') setTimeout(closeModal, 900);
+                if (window.showAppToast) window.showAppToast(message, refreshed && refreshed.email_status === 'sent' ? 'success' : 'warning');
+                if (refreshed && refreshed.email_status === 'sent') setTimeout(closeModal, 900);
             } catch (sendError) {
                 if (status) status.textContent = `Échec de l’envoi : ${sendError.message}`;
             } finally {

@@ -83,9 +83,9 @@ function base64Utf8(value: string): string {
 
 export async function processDelivery(admin: any, deliveryId: string): Promise<Record<string, any>> {
   const { data: claimed, error: claimError } = await admin.from('email_deliveries')
-    .update({ status: 'processing', last_error: null })
+    .update({ status: 'sending', last_error: null })
     .eq('id', deliveryId)
-    .in('status', ['queued', 'failed'])
+    .in('status', ['pending', 'failed'])
     .select('*').maybeSingle();
   if (claimError) throw claimError;
   if (!claimed) {
@@ -134,30 +134,33 @@ export async function processDelivery(admin: any, deliveryId: string): Promise<R
     const rows = summary.map(line => `<li style="margin:6px 0">${escapeHtml(line)}</li>`).join('');
     const html = `<!doctype html><html lang="fr"><body style="margin:0;background:#f1f5f9;font-family:Arial,sans-serif;color:#0f172a"><div style="max-width:600px;margin:auto;padding:24px"><div style="background:#fff;border-radius:12px;padding:24px"><h1 style="font-size:22px">Ta séance est prête !</h1><p>Bonjour,</p><p>Ta séance de home trainer du ${escapeHtml(date)} a bien été enregistrée.</p><ul>${rows}</ul><p>Retrouve ton véritable fichier d’activité TCX en pièce jointe.</p><a href="${STRAVA_UPLOAD_URL}" style="display:inline-block;background:#fc4c02;color:#fff;text-decoration:none;padding:12px 18px;border-radius:8px;font-weight:bold">Importer sur Strava</a><p style="margin-top:22px">Bonne séance et à bientôt !<br>L’équipe HomeTraine</p></div></div></body></html>`;
     const filename = `HomeTraine_${session.started_at.replace(/[:.]/g, '-')}.tcx`;
-    const resendApiKey = Deno.env.get('RESEND_API_KEY');
-    const resendFrom = Deno.env.get('RESEND_FROM');
-    if (!resendApiKey || !resendFrom) throw new Error('Configuration Resend incomplète');
-    const response = await fetch('https://api.resend.com/emails', {
+    const googleScriptUrl = Deno.env.get('GOOGLE_SCRIPT_URL');
+    const googleScriptSecret = Deno.env.get('GOOGLE_SCRIPT_SECRET');
+    if (!googleScriptUrl || !googleScriptSecret) throw new Error('Configuration Google Apps Script incomplète');
+    if (!googleScriptUrl.startsWith('https://script.google.com/macros/s/')) throw new Error('URL Google Apps Script invalide');
+    const response = await fetch(googleScriptUrl, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${resendApiKey}`,
-        'Content-Type': 'application/json',
-        'Idempotency-Key': claimed.idempotency_key
-      },
+      redirect: 'follow',
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        from: resendFrom, to: [claimed.recipient],
-        subject: `HomeTraine — Ta séance du ${date} est prête !`, html, text,
-        attachments: [{ filename, content: base64Utf8(tcx), content_type: 'application/vnd.garmin.tcx+xml' }]
+        secret: googleScriptSecret,
+        idempotency_key: claimed.idempotency_key,
+        recipient: claimed.recipient,
+        subject: `HomeTraine — Ta séance du ${date} est prête !`,
+        html,
+        text,
+        filename,
+        tcx_base64: base64Utf8(tcx)
       })
     });
-    const provider = await response.json().catch(() => ({}));
-    if (!response.ok || !provider.id) throw new Error(provider.message || `Resend HTTP ${response.status}`);
-    const { data: accepted, error: updateError } = await admin.from('email_deliveries').update({
-      status: 'accepted', provider_id: provider.id, provider_status: 'accepted',
+    const gateway = await response.json().catch(() => null);
+    if (!response.ok || !gateway?.ok) throw new Error(gateway?.error || `Google Apps Script HTTP ${response.status}`);
+    const { data: sent, error: updateError } = await admin.from('email_deliveries').update({
+      status: 'sent', provider_id: gateway.request_id || null, provider_status: 'gmail_accepted',
       attempt_count: claimed.attempt_count + 1, accepted_at: new Date().toISOString(), next_attempt_at: null
     }).eq('id', claimed.id).select('*').single();
     if (updateError) throw updateError;
-    return accepted;
+    return sent;
   } catch (error) {
     const attempts = claimed.attempt_count + 1;
     const delaySeconds = Math.min(3600, Math.pow(2, Math.min(attempts, 10)) * 30);
