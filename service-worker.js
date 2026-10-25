@@ -1,5 +1,5 @@
-// Version: cyclodash-v20-analytics-v4 (upgraded from cyclodash-v19-ux-v3)
-const CACHE_NAME = 'cyclodash-v20-analytics-v4';
+// Version: cyclodash-v21-email-tcx (upgraded from cyclodash-v20-analytics-v4 and cyclodash-v19-ux-v3)
+const CACHE_NAME = 'cyclodash-v21-email-tcx';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -12,6 +12,7 @@ const ASSETS = [
   './css/responsive.css',
   './css/ux-v3.css',
   './css/session-detail.css',
+  './css/email.css',
   './js/vendor/chart.umd.js',
   './js/state.js',
   './js/supabase.js',
@@ -21,6 +22,7 @@ const ASSETS = [
   './js/workout.js',
   './js/analytics.js',
   './js/history.js',
+  './js/email.js',
   './js/session-detail.js',
   './js/session.js',
   './js/main.js',

@@ -532,6 +532,9 @@ const SessionDetail = (() => {
             <button class="btn btn-primary sa-action-btn" onclick="exportTCXById('${session.id}')">
                 📥 Télécharger TCX
             </button>
+            <button class="btn btn-secondary sa-action-btn" onclick="CycloEmail.openForSession('${session.id}')">
+                ✉ Envoyer par e-mail
+            </button>
             <button class="btn btn-secondary sa-action-btn" onclick="SessionDetail.close()">
                 ← Retour à l'historique
             </button>
