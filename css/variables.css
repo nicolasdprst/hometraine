@@ -1,20 +1,35 @@
 :root {
-    --bg-color: #000000;
-    --card-bg: rgba(20, 27, 45, 0.6);
-    --card-border: rgba(255, 255, 255, 0.1);
-    --text-primary: #f8fafc;
-    --text-secondary: #94a3b8;
-    --accent: #3b82f6;
-    --accent-hover: #2563eb;
-    --success: #10b981;
-    --danger: #ef4444;
-    --warning: #f59e0b;
-    
-    /* Power Zones */
-    --z1: #64748b; /* Recovery < 55% */
-    --z2: #3b82f6; /* Endurance 55-75% */
-    --z3: #10b981; /* Tempo 75-90% */
-    --z4: #eab308; /* Threshold 90-105% */
-    --z5: #f97316; /* VO2 Max 105-120% */
-    --z6: #ef4444; /* Anaerobic > 120% */
+    --bg: #0E1013;
+    --surface: #16191E;
+    --border: #232830;
+    --border-strong: #2A303A;
+    --text-primary: #ECEEF2;
+    --text-secondary: #9AA3B2;
+    --accent: #7AA2F7;
+    --bar-done: #4A5366;
+    --ok: #6FCF97;
+    --ok-text: #8FE0B0;
+    --bad: #EB5757;
+    --bad-text: #FF9A9A;
+    --bad-dim: #8E3B3B;
+    --tint-ok: rgba(111, 207, 151, .10);
+    --tint-bad: rgba(235, 87, 87, .12);
+    --radius-card: 12px;
+    --radius-btn: 10px;
+    --font: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Compatibilité avec les composants métier existants. */
+    --bg-color: var(--bg);
+    --card-bg: var(--surface);
+    --card-border: var(--border);
+    --accent-hover: #91B2F8;
+    --success: var(--ok);
+    --danger: var(--bad);
+    --warning: #D8B365;
+    --z1: #687386;
+    --z2: #7AA2F7;
+    --z3: #6FCF97;
+    --z4: #D8B365;
+    --z5: #D98C63;
+    --z6: #EB5757;
 }
