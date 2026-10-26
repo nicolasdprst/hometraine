@@ -42,7 +42,11 @@ Deno.serve(async (req: Request) => {
         contents: [{ role: 'user', parts: [{ text: prompt }] }],
         generationConfig: {
           temperature: 0.2,
-          maxOutputTokens: 300,
+          maxOutputTokens: 600,
+          // Gemini 2.5 Flash raisonne dynamiquement par défaut. Ce classement est
+          // simple et déjà validé localement : désactiver le thinking évite une
+          // réponse vide lorsque les pensées consomment tout le budget de sortie.
+          thinkingConfig: { thinkingBudget: 0 },
           responseMimeType: 'application/json',
           responseJsonSchema: {
             type: 'object', additionalProperties: false,
@@ -56,7 +60,12 @@ Deno.serve(async (req: Request) => {
         }
       })
     });
-    if (!gemini.ok) return json({ error: 'Service de conseil indisponible' }, 503);
+    if (!gemini.ok) {
+      const failure = await gemini.json().catch(() => null);
+      const reason = typeof failure?.error?.message === 'string' ? failure.error.message.slice(0, 300) : `HTTP ${gemini.status}`;
+      console.error('Gemini API error', gemini.status, reason);
+      return json({ error: `Gemini API : ${reason}` }, gemini.status === 429 ? 429 : 503);
+    }
     const raw = await gemini.json();
     const text = raw?.candidates?.[0]?.content?.parts?.[0]?.text;
     const parsed = JSON.parse(text || 'null');

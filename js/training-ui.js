@@ -98,7 +98,8 @@
     function workoutCard(item, reason) {
         const w = item.workout || item;
         const minutes = Math.round(w.duration_seconds / 60);
-        return `<article class="training-card" data-category="${escapeHtml(w.category)}" data-duration="${minutes}" data-difficulty="${w.difficulty}"><div><span class="training-category">${escapeHtml(w.category)}</span><h3>${escapeHtml(w.name)}</h3><p>${escapeHtml(w.description)}</p>${reason ? `<p class="recommendation-reason">${escapeHtml(reason)}</p>` : ''}<div class="training-meta">${minutes} min · Difficulté ${w.difficulty}/5 · ${escapeHtml(w.objective)}</div></div><div class="training-card-actions"><button class="btn btn-secondary btn-sm" onclick="CycloTrainingUI.showWorkout('${w.id}')">Détails</button><button class="btn btn-primary btn-sm" onclick="selectWorkout('${w.id}')">Sélectionner</button></div></article>`;
+        const selected = root.state && root.state.activeWorkout && root.state.activeWorkout.id === w.id;
+        return `<article class="training-card${selected ? ' selected' : ''}" data-category="${escapeHtml(w.category)}" data-duration="${minutes}" data-difficulty="${w.difficulty}"><div><span class="training-category">${escapeHtml(w.category)}</span><h3>${escapeHtml(w.name)}</h3><p>${escapeHtml(w.description)}</p>${reason ? `<p class="recommendation-reason">${escapeHtml(reason)}</p>` : ''}<div class="training-meta">${minutes} min · Difficulté ${w.difficulty}/5 · ${escapeHtml(w.objective)}</div></div><div class="training-card-actions"><button class="btn btn-secondary btn-sm" onclick="CycloTrainingUI.showWorkout('${w.id}')">Détails</button><button class="btn btn-primary btn-sm" onclick="selectWorkout('${w.id}')">${selected ? '✓ Sélectionné' : 'Sélectionner'}</button></div></article>`;
     }
 
     function renderWorkouts() {
@@ -107,6 +108,13 @@
         const all = document.getElementById('allWorkouts');
         if (!rec || !all || !root.CycloTrainingLibrary) return;
         const result = root.CycloTrainingRecommendations.recommend(p, ownSessions(), root.CycloTrainingLibrary);
+        const selectedStatus = document.getElementById('selectedWorkoutStatus');
+        if (selectedStatus) {
+            const selected = root.state && root.state.activeWorkout;
+            selectedStatus.innerHTML = selected
+                ? `<div><strong>Entraînement sélectionné : ${escapeHtml(selected.name)}</strong><span>${Math.round(selected.duration_seconds / 60)} min · ${escapeHtml(selected.objective)}</span></div><button class="btn btn-secondary btn-sm" onclick="selectWorkout(null)">Repasser en roule libre</button>`
+                : '<div><strong>Mode roule libre</strong><span>Aucun intervalle ni cible structurée sélectionné.</span></div>';
+        }
         rec.innerHTML = result.recommendations.map(item => workoutCard(item, item.reason)).join('');
         all.innerHTML = root.CycloTrainingLibrary.list.map(item => workoutCard(item)).join('');
         filterWorkouts();
@@ -174,12 +182,22 @@
         const target = document.getElementById('geminiAdviceText');
         if (!p || !target) return;
         const local = root.CycloTrainingRecommendations.recommend(p, ownSessions(), root.CycloTrainingLibrary);
+        const button = document.getElementById('geminiAdviceBtn');
+        target.classList.remove('training-error');
         target.textContent = 'Génération du conseil…';
+        if (button) button.disabled = true;
         const indicators = { ...local.indicators };
         delete indicators.recent;
         const summary = { profile_id: p.id, goal: p.training_goal, ftp_known: !!p.ftp_watts, indicators };
-        const response = await root.CycloGemini.request(summary, local.recommendations.map(item => item.workout.id));
-        target.textContent = response ? `${response.explanation}${response.tip ? ` — ${response.tip}` : ''}` : 'Gemini est indisponible. Les recommandations locales ci-dessus restent valides.';
+        try {
+            const response = await root.CycloGemini.request(summary, local.recommendations.map(item => item.workout.id));
+            target.textContent = `${response.explanation}${response.tip ? ` — ${response.tip}` : ''}`;
+        } catch (error) {
+            target.classList.add('training-error');
+            target.textContent = error.message;
+        } finally {
+            if (button) button.disabled = false;
+        }
     }
 
     function refresh() { renderFtpPanel(); loadPreferences(); renderWorkouts(); }

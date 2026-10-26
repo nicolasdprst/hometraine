@@ -35,7 +35,7 @@ function getZoneColor(zoneStr) {
 function selectWorkout(workoutId) {
     if (!workoutId) {
         state.activeWorkout = null;
-        alert("Entraînement libre sélectionné.");
+        if (window.showAppToast) window.showAppToast('Mode roule libre sélectionné.');
     } else {
         const selectedWorkout = config.workoutsDB[workoutId];
         if (!selectedWorkout) return;
@@ -44,9 +44,12 @@ function selectWorkout(workoutId) {
             return;
         }
         state.activeWorkout = selectedWorkout;
-        alert(`Entraînement "${state.activeWorkout.name}" sélectionné.`);
+        if (window.showAppToast) window.showAppToast(`Entraînement « ${state.activeWorkout.name} » sélectionné.`);
     }
     renderWorkoutStepList();
+    updateWorkoutBanner();
+    if (window.updateKioskWorkoutBanner) window.updateKioskWorkoutBanner();
+    if (window.CycloTrainingUI) window.CycloTrainingUI.renderWorkouts();
     if (window.switchTab) {
         window.switchTab(state.currentTab === 'dashboard' ? 'dashboard' : 'compteur');
     }
@@ -114,13 +117,22 @@ function updateWorkoutBanner() {
     const banner = document.getElementById('workoutBanner');
     const listContainer = document.getElementById('workoutStepList');
     
-    if (!state.activeWorkout || !state.isRecording) {
+    if (!state.activeWorkout) {
         banner.classList.remove('active');
         if (listContainer) listContainer.style.display = 'none';
         return;
     }
     banner.classList.add('active');
     if (listContainer) listContainer.style.display = 'flex';
+
+    if (!state.isRecording) {
+        document.getElementById('workoutNameDisplay').innerText = `Sélectionné : ${state.activeWorkout.name}`;
+        document.getElementById('workoutTargetDisplay').innerText = `${Math.round(state.activeWorkout.duration_seconds / 60)} min · ${state.activeWorkout.objective}`;
+        document.getElementById('workoutTimeDisplay').innerText = 'Prêt à démarrer';
+        document.getElementById('zoneBar').style.width = '0%';
+        renderWorkoutStepList();
+        return;
+    }
 
     if (state.currentWorkoutStepIndex >= state.activeWorkout.steps.length) {
         document.getElementById('workoutNameDisplay').innerText = "Entraînement terminé ! (Roule libre)";

@@ -93,11 +93,11 @@ window.switchTab = function(tabId) {
 
     // Si on bascule sur le Dashboard et qu'une séance est en cours,
     // on rafraîchit immédiatement le graphique qui était en veille
-    if (tabId === 'dashboard' && state.isRecording) {
+    if (tabId === 'dashboard') {
         renderChartData();
         updateWorkoutBanner();
     }
-    if (tabId === 'compteur' && state.isRecording) {
+    if (tabId === 'compteur') {
         updateKioskWorkoutBanner();
     }
     updateLiveMetrics();

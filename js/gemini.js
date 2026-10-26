@@ -8,15 +8,25 @@
         if (value.tip != null && (typeof value.tip !== 'string' || value.tip.length > 240)) throw new Error('Conseil Gemini invalide');
         return { explanation: value.explanation, workout_ids: value.workout_ids, tip: value.tip || '' };
     }
+    function availabilityError() {
+        if (!root.supabaseClient) return 'Client Supabase indisponible.';
+        if (!root.supabaseClient.isAuthenticated()) return 'Connectez-vous au compte Supabase dans Paramètres pour utiliser Gemini.';
+        if (root.navigator && root.navigator.onLine === false) return 'Connexion Internet indisponible. Les recommandations locales restent actives.';
+        return null;
+    }
     async function request(summary, deterministicCandidates) {
-        if (!root.supabaseClient || !root.supabaseClient.isAuthenticated() || navigator.onLine === false) return null;
+        const unavailable = availabilityError();
+        if (unavailable) throw new Error(unavailable);
         try {
             const response = await root.supabaseClient.invokeFunction('training-advice', { summary, candidate_workout_ids: deterministicCandidates.slice(0, 6) });
             return validate(response);
         } catch (error) {
             console.warn('Conseil Gemini indisponible, recommandations locales conservées:', error.message);
-            return null;
+            if (error.status === 404) throw new Error('La fonction Supabase « training-advice » n’est pas déployée.');
+            if (error.status === 401 || error.status === 403) throw new Error('Accès Gemini refusé : reconnectez le compte Supabase puis réessayez.');
+            if (error.status === 429) throw new Error('Quota de conseils Gemini atteint. Réessayez plus tard.');
+            throw new Error(`Gemini indisponible : ${error.message || 'erreur inconnue'}`);
         }
     }
-    root.CycloGemini = Object.freeze({ validate, request });
+    root.CycloGemini = Object.freeze({ validate, availabilityError, request });
 })(typeof window !== 'undefined' ? window : globalThis);

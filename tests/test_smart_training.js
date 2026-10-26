@@ -62,11 +62,18 @@ assert.throws(() => feedbackCtx.CycloTrainingFeedback.save('s2', 'p1', 'easy'), 
 const geminiCtx = load(['js/training-library.js', 'js/gemini.js'], { navigator: { onLine: false } });
 assert.deepStrictEqual(JSON.parse(JSON.stringify(geminiCtx.CycloGemini.validate({ explanation: 'Conseil', workout_ids: ['easy20'], tip: 'Souple.' }))), { explanation: 'Conseil', workout_ids: ['easy20'], tip: 'Souple.' });
 assert.throws(() => geminiCtx.CycloGemini.validate({ explanation: 'x', workout_ids: ['invented'] }), /invalide/);
+assert.match(geminiCtx.CycloGemini.availabilityError(), /Supabase/);
+const offlineGeminiCtx = load(['js/training-library.js', 'js/gemini.js'], { navigator: { onLine: false }, supabaseClient: { isAuthenticated: () => true } });
+assert.match(offlineGeminiCtx.CycloGemini.availabilityError(), /Internet/);
 
 const migration = fs.readFileSync(path.join(root, 'supabase/migrations/20261026_006_intelligent_training.sql'), 'utf8');
 assert(migration.includes('ALTER COLUMN ftp_watts DROP NOT NULL'));
 assert(migration.includes('ENABLE ROW LEVEL SECURITY'));
 const sw = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 ['training-library.js', 'ftp-estimator.js', 'training-recommendations.js', 'training-feedback.js', 'gemini.js', 'training-ui.js'].forEach(name => assert(sw.includes(name), `${name} absent du cache`));
+const edgeFunction = fs.readFileSync(path.join(root, 'supabase/functions/training-advice/index.ts'), 'utf8');
+assert(edgeFunction.includes('thinkingBudget: 0'), 'Gemini 2.5 Flash doit réserver le budget à la réponse JSON');
+const trainingUi = fs.readFileSync(path.join(root, 'js/training-ui.js'), 'utf8');
+assert(trainingUi.includes('Entraînement sélectionné'), 'la sélection doit rester visible');
 
 console.log('✓ Smart training: 19 séances, FTP, recommandations, ressenti, Gemini et migration validés');

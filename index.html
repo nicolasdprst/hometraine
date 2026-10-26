@@ -290,10 +290,11 @@
                 <h1>Entraînements</h1>
                 <p class="status">Des séances adaptées, disponibles même hors ligne</p>
             </header>
+            <div id="selectedWorkoutStatus" class="selected-workout-status glass" aria-live="polite"></div>
             <section class="training-section">
                 <h2>Recommandés pour vous</h2>
                 <div id="recommendedWorkouts" class="training-grid"><p class="training-empty">Sélectionnez un profil pour obtenir des recommandations.</p></div>
-                <div class="gemini-advice"><button class="btn btn-secondary btn-sm" onclick="CycloTrainingUI.requestGeminiAdvice()">Conseil personnalisé Gemini (facultatif)</button><p id="geminiAdviceText" class="history-meta"></p></div>
+                <div class="gemini-advice"><button id="geminiAdviceBtn" class="btn btn-secondary btn-sm" onclick="CycloTrainingUI.requestGeminiAdvice()">Conseil personnalisé Gemini (facultatif)</button><p id="geminiAdviceText" class="history-meta" role="status"></p></div>
             </section>
             <section class="training-section">
                 <div class="training-section-heading"><h2>Tous les entraînements</h2><button class="btn btn-secondary btn-sm" onclick="selectWorkout(null)">Roule libre</button></div>
