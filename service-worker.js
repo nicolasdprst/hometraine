@@ -1,5 +1,5 @@
-// Version: cyclodash-v23-smart-training (succède à cyclodash-v19-ux-v3, cyclodash-v20-analytics-v4 et v22-gmail-tcx)
-const CACHE_NAME = 'cyclodash-v23-smart-training';
+// Version: cyclodash-v24-smart-training-fixes (succède à cyclodash-v19-ux-v3, cyclodash-v20-analytics-v4 et v22-gmail-tcx)
+const CACHE_NAME = 'cyclodash-v24-smart-training-fixes';
 const ASSETS = [
   './index.html',
   './style.css',

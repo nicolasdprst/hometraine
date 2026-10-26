@@ -438,7 +438,7 @@ function updateKioskWorkoutBanner() {
     const banner = document.getElementById('kioskWorkoutBanner');
     if (!banner) return;
 
-    if (!state.activeWorkout || !state.isRecording) {
+    if (!state.activeWorkout) {
         banner.classList.remove('active');
         return;
     }
@@ -447,6 +447,14 @@ function updateKioskWorkoutBanner() {
     const nameEl = document.getElementById('kioskWorkoutNameDisplay');
     const timeEl = document.getElementById('kioskWorkoutTimeDisplay');
     const targetEl = document.getElementById('kioskWorkoutTargetDisplay');
+
+    if (!state.isRecording) {
+        if (nameEl) nameEl.innerText = `Prêt : ${state.activeWorkout.name}`;
+        if (timeEl) timeEl.innerText = formatTime(state.activeWorkout.duration_seconds);
+        if (targetEl) targetEl.innerText = 'Démarrez la séance pour lancer les intervalles';
+        banner.style.borderLeftColor = 'var(--accent)';
+        return;
+    }
 
     if (state.currentWorkoutStepIndex >= state.activeWorkout.steps.length) {
         if (nameEl) nameEl.innerText = "Entraînement terminé";
