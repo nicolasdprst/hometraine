@@ -70,17 +70,14 @@
                 <div class="ble-status" aria-live="polite">
                     <span id="kioskBleDot" class="kiosk-ble-dot"></span>
                     <span id="kioskBleText">Déconnecté</span>
+                    <button id="kioskConnectBtn" class="btn btn-secondary btn-sm" style="display:none">Connecter</button>
+                    <button id="kioskDemoBtn" class="btn btn-secondary btn-sm" style="display:none">Mode démo</button>
                     <span id="status" class="visually-hidden">Déconnecté</span>
                 </div>
                 <button id="kioskProfileBadge" class="profile-chip" onclick="profilesManager.showPicker()" aria-label="Changer de profil">
-                    <span id="kioskProfileAvatar" class="profile-avatar">CD</span>
-                    <span><strong id="kioskProfileName">Profil</strong><small id="kioskProfileFtp">FTP -- W</small></span>
+                    <span id="kioskProfileAvatar" class="profile-avatar" style="display:none">CD</span>
+                    <span class="profile-chip-label"><strong id="kioskProfileName">Profil</strong> · <small id="kioskProfileFtp">FTP -- W</small></span>
                 </button>
-            </div>
-
-            <div class="connect-row">
-                <button id="kioskConnectBtn" class="btn btn-primary btn-wide">Connecter le home trainer</button>
-                <button id="kioskDemoBtn" class="btn btn-secondary" style="display:none">Mode démo</button>
             </div>
 
             <article id="kioskWorkoutBanner" class="workout-live-card" aria-live="polite">
@@ -97,27 +94,23 @@
 
             <section id="kioskWattsCard" class="power-hero" aria-live="polite">
                 <span class="eyebrow">Puissance</span>
-                <div class="power-reading"><strong id="kioskWattsVal">0</strong><span>W</span></div>
-                <div id="targetStatusBadge" class="target-badge neutral">Pas de cible</div>
+                <div class="power-reading"><strong id="kioskWattsVal" class="is-idle">0</strong><span>W</span></div>
+                <div id="targetStatusBadge" class="target-badge neutral" style="display:none">Pas de cible</div>
                 <p id="targetDetailDisplay" class="target-detail">Roule libre</p>
-                <div class="power-secondary">
-                    <span><small>Moyenne</small><strong><span id="kioskAvgWattsVal">0</span> W</strong></span>
-                    <span><small>Maximum</small><strong><span id="wattsMaxVal">0</span> W</strong></span>
-                </div>
+                <div class="power-stats-line">Moyenne <span id="kioskAvgWattsVal">0</span> W · Max <span id="wattsMaxVal">0</span> W</div>
             </section>
 
             <div class="ride-stats" aria-label="Statistiques en direct">
-                <div><small>Vitesse</small><strong><span id="kioskSpeedVal">0.0</span> <span>km/h</span></strong></div>
+                <div><small>Vitesse</small><strong><span id="kioskSpeedVal" class="is-idle">0.0</span> <span>km/h</span></strong></div>
                 <div><small>Durée</small><strong id="kioskDurationVal">00:00</strong></div>
                 <div><small>Distance</small><strong><span id="kioskDistanceVal">0.00</span> <span>km</span></strong></div>
             </div>
 
             <div class="session-actions">
                 <button id="kioskStartBtn" class="btn btn-primary btn-wide" style="display:none">Démarrer</button>
-                <button id="kioskPauseBtn" class="btn btn-secondary" style="display:none">Pause</button>
-                <button id="kioskStopBtn" class="btn btn-danger" style="display:none">Terminer</button>
+                <button id="kioskPauseBtn" class="btn btn-primary" style="display:none">Pause</button>
+                <button id="kioskStopBtn" class="btn btn-secondary" style="display:none">Terminer</button>
             </div>
-
         </section>
 
         <section id="workouts" class="tab-content" aria-labelledby="workoutsTitle">

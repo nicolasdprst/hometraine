@@ -62,6 +62,28 @@
         }).join(' ');
     }
 
+    const COGGAN_ZONES = {
+        Z1: { num: 1, name: 'Récupération' },
+        Z2: { num: 2, name: 'Endurance' },
+        Z3: { num: 3, name: 'Tempo' },
+        Z4: { num: 4, name: 'Seuil' },
+        Z5: { num: 5, name: 'VO2max' },
+        Z6: { num: 6, name: 'Anaérobie' }
+    };
+
+    function cogganZoneString(stepType, targetPct) {
+        if (!stepType) return '';
+        const norm = String(stepType).toUpperCase().trim();
+        const m = norm.match(/Z([1-6])/);
+        if (m) {
+            const key = 'Z' + m[1];
+            const info = COGGAN_ZONES[key];
+            const pctStr = targetPct ? ` · ${targetPct} % FTP` : '';
+            return `${info ? `Zone ${info.num} · ${info.name}` : `Zone ${m[1]}`}${pctStr}`;
+        }
+        return norm + (targetPct ? ` · ${targetPct} % FTP` : '');
+    }
+
     function renderTimeline() {
         const container = el('workoutTimeline');
         const elapsedLabel = el('workoutElapsedDisplay');
@@ -72,14 +94,21 @@
         if (!workout) {
             const watts = (root.state.sessionData.watts || []).slice(-600);
             const finiteWatts = watts.filter(value => Number.isFinite(Number(value))).map(Number);
-            const max = Math.max(300, number(root.state.ftp) * 1.35, ...finiteWatts);
-            const points = pathPoints(watts, 356, 70, max);
-            container.innerHTML = `<svg class="timeline-power-line" viewBox="0 0 356 70" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline></svg>`;
+            if (finiteWatts.length < 2) {
+                container.style.display = 'none';
+                container.innerHTML = '';
+            } else {
+                container.style.display = 'flex';
+                const max = Math.max(300, number(root.state.ftp) * 1.35, ...finiteWatts);
+                const points = pathPoints(watts, 356, 52, max);
+                container.innerHTML = `<svg class="timeline-power-line" viewBox="0 0 356 52" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline></svg>`;
+            }
             container.setAttribute('aria-label', 'Puissance des dix dernières minutes en roule libre');
             if (elapsedLabel) elapsedLabel.textContent = `${root.formatTime ? root.formatTime(elapsed) : '00:00'} / libre`;
             return;
         }
 
+        container.style.display = 'flex';
         const duration = Math.max(1, totalDuration(workout));
         const ftp = number(root.state.ftp);
         const bars = workout.steps.map((step, index) => {
@@ -90,8 +119,8 @@
             return `<span class="timeline-step ${status}" style="width:${width.toFixed(2)}%;height:${height.toFixed(1)}%" title="${escapeHtml(step.desc)}"></span>`;
         }).join('');
         const values = root.state.sessionData.watts || [];
-        const points = pathPoints(values, 356, 70, Math.max(300, ftp * 1.35), root.state.sessionData.time || [], duration);
-        container.innerHTML = `${bars}<svg class="timeline-power-line" viewBox="0 0 356 70" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline></svg>`;
+        const points = pathPoints(values, 356, 52, Math.max(300, ftp * 1.35), root.state.sessionData.time || [], duration);
+        container.innerHTML = `${bars}<svg class="timeline-power-line" viewBox="0 0 356 52" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline></svg>`;
         container.setAttribute('aria-label', `Profil de ${workout.name}, ${root.state.currentWorkoutStepIndex + 1} sur ${workout.steps.length}`);
         if (elapsedLabel) elapsedLabel.textContent = `${root.formatTime(elapsed)} / ${root.formatTime(duration)}`;
     }
@@ -102,23 +131,61 @@
         const target = stepTarget(current && current.step, root.state.ftp);
         const power = rollingPower(5);
         const enabled = root.state.displaySettings ? root.state.displaySettings.zoneFeedbackEnabled : localStorage.getItem('zoneFeedbackEnabled') !== 'false';
-        targetState = enabled && root.state.isRecording && !root.state.isPaused ? classifyTarget(power, target, targetState) : 'neutral';
-        document.body.classList.remove('zone-ok', 'zone-high', 'zone-low');
-        if (targetState !== 'neutral') document.body.classList.add(`zone-${targetState}`);
 
         const badge = el('targetStatusBadge');
         const detail = el('targetDetailDisplay');
         if (!badge || !detail) return;
-        badge.className = `target-badge ${targetState}`;
+
         if (!current || !target) {
-            badge.textContent = root.state.isPaused ? 'En pause' : 'Pas de cible';
-            detail.textContent = root.state.activeWorkout && !number(root.state.ftp) ? 'FTP requise pour afficher la cible' : 'Roule libre';
+            targetState = 'neutral';
+            badge.style.display = 'none';
+            if (root.state.activeWorkout && !number(root.state.ftp)) {
+                detail.textContent = 'FTP requise pour afficher la cible';
+            } else if (number(root.state.ftp) && Number.isFinite(power) && power > 0) {
+                let zKey = 'Z1';
+                if (power > root.state.ftp * 1.2) zKey = 'Z6';
+                else if (power > root.state.ftp * 1.05) zKey = 'Z5';
+                else if (power > root.state.ftp * 0.9) zKey = 'Z4';
+                else if (power > root.state.ftp * 0.75) zKey = 'Z3';
+                else if (power > root.state.ftp * 0.55) zKey = 'Z2';
+                detail.textContent = cogganZoneString(zKey, Math.round(power / root.state.ftp * 100));
+            } else {
+                detail.textContent = 'Roule libre';
+            }
+            document.body.classList.remove('zone-ok', 'zone-high', 'zone-low');
             return;
         }
-        const labels = { ok: 'Dans la cible', high: 'Au-dessus', low: 'En dessous', neutral: 'Cible' };
-        badge.textContent = labels[targetState];
+
+        badge.style.display = 'inline-flex';
+        const rangeLow = Math.round(target * (1 - TARGET_TOLERANCE));
+        const rangeHigh = Math.round(target * (1 + TARGET_TOLERANCE));
         const pct = number(root.state.ftp) ? Math.round(target / number(root.state.ftp) * 100) : 0;
-        detail.textContent = `${current.step.type} · ${target} W · ${pct}% FTP`;
+        detail.textContent = cogganZoneString(current.step.type, pct);
+
+        const isActivelyRiding = root.state.isRecording && !root.state.isPaused && Number.isFinite(power) && power > 0;
+        if (isActivelyRiding) {
+            targetState = classifyTarget(power, target, targetState);
+        } else {
+            targetState = 'neutral';
+        }
+
+        if (targetState === 'high') {
+            const diff = Math.round(power - target);
+            badge.className = 'target-badge high';
+            badge.textContent = `↑ Trop haut · +${diff} W`;
+        } else if (targetState === 'low') {
+            const diff = Math.round(target - power);
+            badge.className = 'target-badge low';
+            badge.textContent = `↓ Trop bas · −${diff} W`;
+        } else {
+            badge.className = 'target-badge ok';
+            badge.textContent = `Dans la cible · ${rangeLow}–${rangeHigh} W`;
+        }
+
+        document.body.classList.remove('zone-ok', 'zone-high', 'zone-low');
+        if (enabled && isActivelyRiding && targetState !== 'neutral') {
+            document.body.classList.add(`zone-${targetState}`);
+        }
     }
 
     function syncPauseButton() {

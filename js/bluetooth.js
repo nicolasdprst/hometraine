@@ -54,8 +54,14 @@ function updateLiveMetrics() {
     // 2. Kiosk Counter elements
     const kioskWattsEl = document.getElementById('kioskWattsVal');
     const kioskSpeedEl = document.getElementById('kioskSpeedVal');
-    if (kioskWattsEl) kioskWattsEl.innerText = powerAvailable ? Math.round(state.currentWatts) : '—';
-    if (kioskSpeedEl) kioskSpeedEl.innerText = speedAvailable ? state.currentSpeed.toFixed(1) : '—';
+    if (kioskWattsEl) {
+        kioskWattsEl.innerText = powerAvailable ? Math.round(state.currentWatts) : '0';
+        kioskWattsEl.classList.toggle('is-idle', !powerAvailable);
+    }
+    if (kioskSpeedEl) {
+        kioskSpeedEl.innerText = speedAvailable ? state.currentSpeed.toFixed(1) : '0.0';
+        kioskSpeedEl.classList.toggle('is-idle', !speedAvailable);
+    }
 
     // Couleur dynamique de la zone de puissance
     let zoneStr = 'Z1';
@@ -99,10 +105,12 @@ function syncControlsUI() {
     const kioskStopBtn = document.getElementById('kioskStopBtn');
     const devMode = localStorage.getItem('devMode') === 'true';
 
-    if (kioskConnectBtn) kioskConnectBtn.style.display = isConn ? 'none' : 'flex';
-    if (kioskConnectBtn) kioskConnectBtn.innerText = state.device ? 'Reconnecter' : 'Connecter le home trainer';
+    if (kioskConnectBtn) {
+        kioskConnectBtn.style.display = isConn ? 'none' : 'inline-flex';
+        kioskConnectBtn.innerText = state.device ? 'Reconnecter' : 'Connecter';
+    }
     if (connectBtn) connectBtn.innerText = state.device ? 'Reconnecter' : 'Connecter le home trainer';
-    if (kioskDemoBtn) kioskDemoBtn.style.display = (!isConn && !isRec && devMode) ? 'flex' : 'none';
+    if (kioskDemoBtn) kioskDemoBtn.style.display = (!isConn && !isRec && devMode) ? 'inline-flex' : 'none';
     if (kioskStartBtn) kioskStartBtn.style.display = (isConn && !isRec) ? 'flex' : 'none';
     if (kioskStopBtn) kioskStopBtn.style.display = isRec ? 'flex' : 'none';
 }
