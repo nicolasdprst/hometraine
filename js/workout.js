@@ -117,6 +117,7 @@ function renderWorkoutStepList() {
 function updateWorkoutBanner() {
     const banner = document.getElementById('workoutBanner');
     const listContainer = document.getElementById('workoutStepList');
+    if (!banner) return;
     
     if (!state.activeWorkout) {
         banner.classList.remove('active');

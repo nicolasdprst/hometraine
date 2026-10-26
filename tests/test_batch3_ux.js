@@ -135,12 +135,12 @@ async function testOfflineDeletionAndReplay() {
 
 function testVisualContract() {
     const html = source('index.html');
-    const css = source('css/ux-v3.css');
-    assert(html.includes('Qui pédale aujourd\'hui'));
+    const css = source('css/app.css');
+    assert(html.includes('Qui pédale aujourd’hui'));
     assert(html.includes('deleteSessionModal'));
     assert(css.includes('min-height: 44px'));
-    assert(css.includes('selection-required'));
-    assert(source('service-worker.js').includes('cyclodash-v19-ux-v3'));
+    assert(css.includes('.bottom-nav'));
+    assert(source('service-worker.js').includes('cyclodash-v25-ui-redesign'));
 }
 
 (async () => {

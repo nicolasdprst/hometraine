@@ -269,7 +269,7 @@ const SessionDetail = (() => {
             <div class="sa-header-date">${capitalizeFirst(dateStr)} — ${timeStr}</div>
             <div class="sa-header-meta">
                 <span class="sa-header-profile" style="border-color: ${profile.avatar_color || '#3b82f6'}">
-                    🚴 ${escapeHtml(profile.display_name)}
+                    ${escapeHtml(profile.display_name)}
                 </span>
                 <span class="sa-header-workout">${escapeHtml(session.workout_name || 'Roule Libre')}</span>
             </div>
@@ -291,7 +291,7 @@ const SessionDetail = (() => {
 
         const el = createElement('div', 'sa-section');
         el.innerHTML = `
-            <div class="sa-section-title">📊 Résumé</div>
+            <div class="sa-section-title">Résumé</div>
             <div class="sa-stats-grid">
                 <div class="sa-stat-card">
                     <div class="sa-stat-value">${formatTime(duration)}</div>
@@ -325,13 +325,13 @@ const SessionDetail = (() => {
     function renderChartSection(analysis) {
         const el = createElement('div', 'sa-section');
         el.innerHTML = `
-            <div class="sa-section-title">📈 Graphiques</div>
+            <div class="sa-section-title">Graphiques</div>
             <div class="sa-chart-toggle">
                 <button id="saChartPowerBtn" class="sa-toggle-btn active" onclick="SessionDetail.switchChart('power')">
-                    ⚡ Puissance
+                    Puissance
                 </button>
                 <button id="saChartSpeedBtn" class="sa-toggle-btn" onclick="SessionDetail.switchChart('speed')">
-                    🚴 Vitesse
+                    Vitesse
                 </button>
             </div>
             <div class="sa-chart-wrapper">
@@ -355,9 +355,8 @@ const SessionDetail = (() => {
     function renderNoDetailedData() {
         const el = createElement('div', 'sa-section');
         el.innerHTML = `
-            <div class="sa-section-title">📈 Graphiques</div>
+            <div class="sa-section-title">Graphiques</div>
             <div class="sa-no-data-card">
-                <div class="sa-no-data-icon">📊</div>
                 <p>Les mesures détaillées seconde par seconde ne sont pas disponibles pour cette séance.</p>
                 <p class="sa-no-data-hint">Les séances anciennes ou importées peuvent ne pas contenir de séries temporelles complètes.</p>
             </div>
@@ -371,7 +370,7 @@ const SessionDetail = (() => {
 
         if (!zones.available) {
             el.innerHTML = `
-                <div class="sa-section-title">🎯 Répartition par zones FTP</div>
+                <div class="sa-section-title">Répartition par zones FTP</div>
                 <div class="sa-no-data-card">
                     <p>Données de puissance insuffisantes pour calculer la répartition par zones.</p>
                 </div>
@@ -409,7 +408,7 @@ const SessionDetail = (() => {
         }
 
         el.innerHTML = `
-            <div class="sa-section-title">🎯 Répartition par zones FTP</div>
+            <div class="sa-section-title">Répartition par zones FTP</div>
             <div class="sa-ftp-note${ftpClass}">${ftpNote}</div>
             <div class="sa-zones-container">
                 ${zoneRows}
@@ -434,7 +433,7 @@ const SessionDetail = (() => {
         }
 
         el.innerHTML = `
-            <div class="sa-section-title">🏆 Meilleurs efforts</div>
+            <div class="sa-section-title">Meilleurs efforts</div>
             <div class="sa-efforts-grid">
                 ${rows}
             </div>
@@ -449,7 +448,7 @@ const SessionDetail = (() => {
 
         if (!v.available) {
             el.innerHTML = `
-                <div class="sa-section-title">📐 Régularité de l'effort</div>
+                <div class="sa-section-title">Régularité de l'effort</div>
                 <div class="sa-no-data-card">
                     <p>Données insuffisantes pour analyser la régularité de la puissance.</p>
                 </div>
@@ -458,7 +457,7 @@ const SessionDetail = (() => {
         }
 
         el.innerHTML = `
-            <div class="sa-section-title">📐 Régularité de l'effort</div>
+            <div class="sa-section-title">Régularité de l'effort</div>
             <div class="sa-variability-card">
                 <div class="sa-var-stats">
                     <div class="sa-var-item">
@@ -532,7 +531,7 @@ const SessionDetail = (() => {
         }
 
         el.innerHTML = `
-            <div class="sa-section-title">📋 Statistiques complètes</div>
+            <div class="sa-section-title">Statistiques complètes</div>
             <div class="sa-details-table">
                 ${tableRows}
             </div>
@@ -544,10 +543,10 @@ const SessionDetail = (() => {
         const el = createElement('div', 'sa-actions');
         el.innerHTML = `
             <button class="btn btn-primary sa-action-btn" onclick="exportTCXById('${session.id}')">
-                📥 Télécharger TCX
+                Télécharger TCX
             </button>
             <button class="btn btn-secondary sa-action-btn" onclick="SessionDetail.emailCurrent()">
-                ✉ Envoyer par e-mail
+                Envoyer par e-mail
             </button>
             <button class="btn btn-danger sa-action-btn" onclick="SessionDetail.deleteCurrent()">
                 Supprimer la séance

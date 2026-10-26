@@ -443,13 +443,13 @@ function testVisualAndContractChecks() {
     assert(css.includes('.sa-effort-card'), 'Cartes de meilleurs efforts présentes');
 
     // Vérifications Service Worker
-    assert(sw.includes('cyclodash-v20-analytics-v4'), 'Service Worker doit avoir le nouveau cache v20');
+    assert(sw.includes('cyclodash-v25-ui-redesign'), 'Service Worker doit avoir le cache de la refonte UI');
     assert(sw.includes('./css/session-detail.css'), 'Service Worker doit mettre en cache session-detail.css');
     assert(sw.includes('./js/analytics.js'), 'Service Worker doit mettre en cache analytics.js');
     assert(sw.includes('./js/session-detail.js'), 'Service Worker doit mettre en cache session-detail.js');
 
     // Vérifications History
-    assert(historySrc.includes('Voir l\'analyse'), 'history.js doit contenir le bouton Voir l\'analyse');
+    assert(historySrc.includes("analyzeBtn.textContent = 'Détails'"), 'history.js doit proposer le détail de séance');
     assert(historySrc.includes('ftp_at_session_watts'), 'history.js doit mémoriser ftp_at_session_watts à la fin de la séance');
     assert(historySrc.includes('onSessionDeleted'), 'history.js doit notifier SessionDetail lors de la suppression');
 

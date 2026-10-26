@@ -203,6 +203,7 @@ function startSession() {
     
     // Synchroniser les contrôles (afficher bouton TERMINER sur Compteur & Dashboard)
     syncControlsUI();
+    if (window.CycloUI) window.CycloUI.renderCounter();
     
     if (sessionTickInterval) clearInterval(sessionTickInterval);
     sessionTickInterval = setInterval(tick, 1000);
@@ -247,6 +248,7 @@ function stopSession() {
         updateBleStatusUI('connected', state.bleDeviceName);
     }
     syncControlsUI();
+    if (window.CycloUI) window.CycloUI.renderCounter();
     
     saveSessionToHistory();
 }
@@ -446,6 +448,12 @@ function updateKioskWorkoutBanner() {
 
     if (!state.activeWorkout) {
         banner.classList.remove('active');
+        const nameEl = document.getElementById('kioskWorkoutNameDisplay');
+        const timeEl = document.getElementById('kioskWorkoutTimeDisplay');
+        const targetEl = document.getElementById('kioskWorkoutTargetDisplay');
+        if (nameEl) nameEl.innerText = 'Roule libre';
+        if (timeEl) timeEl.innerText = '--:--';
+        if (targetEl) targetEl.innerText = 'Sans cible';
         if (window.CycloUI) window.CycloUI.renderCounter();
         return;
     }

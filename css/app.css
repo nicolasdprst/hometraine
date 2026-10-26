@@ -1,6 +1,6 @@
 body { padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
-body.zone-ok { background: linear-gradient(var(--tint-ok), var(--tint-ok)), var(--bg); }
-body.zone-high, body.zone-low { background: linear-gradient(var(--tint-bad), var(--tint-bad)), var(--bg); }
+body.zone-ok { background-color: #15231B; }
+body.zone-high, body.zone-low { background-color: #25171A; }
 
 .app-shell { width: min(100%, 480px); min-height: 100vh; margin: 0 auto; padding: max(16px, env(safe-area-inset-top)) 16px 28px; }
 .tab-content { display: none; }

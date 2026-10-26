@@ -52,11 +52,14 @@
         return 'ok';
     }
 
-    function pathPoints(values, width, height, maxValue) {
+    function pathPoints(values, width, height, maxValue, xValues = null, maxX = null) {
         const finite = values.map((value, index) => ({ value: Number(value), index })).filter(point => Number.isFinite(point.value));
         if (!finite.length) return '';
         const denominator = Math.max(1, values.length - 1);
-        return finite.map(point => `${(point.index / denominator * width).toFixed(1)},${(height - Math.min(1, point.value / maxValue) * height).toFixed(1)}`).join(' ');
+        return finite.map(point => {
+            const xRatio = xValues && maxX ? Math.min(1, number(xValues[point.index]) / maxX) : point.index / denominator;
+            return `${(xRatio * width).toFixed(1)},${(height - Math.min(1, point.value / maxValue) * height).toFixed(1)}`;
+        }).join(' ');
     }
 
     function renderTimeline() {
@@ -87,7 +90,7 @@
             return `<span class="timeline-step ${status}" style="width:${width.toFixed(2)}%;height:${height.toFixed(1)}%" title="${escapeHtml(step.desc)}"></span>`;
         }).join('');
         const values = root.state.sessionData.watts || [];
-        const points = pathPoints(values, 356, 70, Math.max(300, ftp * 1.35));
+        const points = pathPoints(values, 356, 70, Math.max(300, ftp * 1.35), root.state.sessionData.time || [], duration);
         container.innerHTML = `${bars}<svg class="timeline-power-line" viewBox="0 0 356 70" preserveAspectRatio="none" aria-hidden="true"><polyline points="${points}"></polyline></svg>`;
         container.setAttribute('aria-label', `Profil de ${workout.name}, ${root.state.currentWorkoutStepIndex + 1} sur ${workout.steps.length}`);
         if (elapsedLabel) elapsedLabel.textContent = `${root.formatTime(elapsed)} / ${root.formatTime(duration)}`;

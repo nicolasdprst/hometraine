@@ -377,7 +377,7 @@ async function renderHistory() {
         empty.style.cssText = 'padding:2.5rem 1rem;text-align:center;color:var(--text-secondary)';
         const title = document.createElement('div');
         title.style.cssText = 'font-weight:600;font-size:1.05rem;color:var(--text-primary)';
-        title.textContent = `🚴 Aucune activité pour ${activeProfile ? activeProfile.display_name : 'ce profil'}`;
+        title.textContent = `Aucune activité pour ${activeProfile ? activeProfile.display_name : 'ce profil'}`;
         const help = document.createElement('p');
         help.textContent = 'Démarrez une séance sur le Compteur pour enregistrer vos premiers tours de roue !';
         empty.append(title, help);
