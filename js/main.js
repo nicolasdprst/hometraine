@@ -106,6 +106,9 @@ window.switchTab = function(tabId) {
     if (tabId === 'history' && window.renderHistory) {
         window.renderHistory();
     }
+    if ((tabId === 'workouts' || tabId === 'settings') && window.CycloTrainingUI) {
+        window.CycloTrainingUI.refresh();
+    }
 };
 
 // --- GESTION DES PARAMÈTRES ---
@@ -134,7 +137,10 @@ function loadSettings() {
 function updateZonesDisplay() {
     const zonesDisplay = document.getElementById('zonesDisplay');
     if (!zonesDisplay) return;
-    
+    if (!Number(state.ftp)) {
+        zonesDisplay.style.display = 'none';
+        return;
+    }
     zonesDisplay.style.display = 'block';
     document.getElementById('z1Val').innerText = `< ${Math.round(state.ftp * 0.55)} W`;
     document.getElementById('z2Val').innerText = `${Math.round(state.ftp * 0.55)} - ${Math.round(state.ftp * 0.75)} W`;
@@ -157,7 +163,10 @@ window.saveSettings = function() {
         
         // Mettre également à jour le profil actif
         if (window.profilesManager && window.profilesManager.activeProfile) {
-            window.profilesManager.updateProfile(window.profilesManager.activeProfile.id, { ftp_watts: val })
+            const p = window.profilesManager.activeProfile;
+            const history = Array.isArray(p.ftp_history) ? p.ftp_history.slice() : [];
+            history.push({ watts: val, source: 'manual', confidence: 'manual', recorded_at: new Date().toISOString() });
+            window.profilesManager.updateProfile(p.id, { ftp_watts: val, ftp_origin: 'manual', ftp_confidence: 'manual', ftp_history: history })
                 .catch(e => console.warn(e));
         }
 

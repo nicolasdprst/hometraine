@@ -11,6 +11,7 @@ Ce dossier contient les migrations SQL et la documentation nécessaire pour le b
 2. **`public.sessions`** : Résumés des séances, avec l'instantané non rétroactif de la demande d'e-mail.
 3. **`public.session_data`** : Séries temporelles complètes (secondes, watts, km/h) stockées en format JSONB compact pour régénération ultérieure d'exports TCX sans coût d'IO excessif.
 4. **`public.email_deliveries`** : File d'envoi Gmail idempotente (`pending`, `sending`, `sent`, `failed`).
+5. **`public.ai_recommendation_usage`** : compteur serveur minimal limitant les conseils Gemini à 10 par heure et par compte.
 
 ## Application de la migration
 Pour appliquer la migration sur le projet Supabase :
@@ -21,7 +22,8 @@ Pour appliquer la migration sur le projet Supabase :
 5. La migration 002 vérifie les données existantes avant d'ajouter ses contraintes. Si elle signale une incohérence, examinez-la manuellement : aucune donnée ne doit être supprimée pour contourner le contrôle.
 6. Exécutez `supabase/migrations/20261024_003_session_analytics.sql`, puis `supabase/migrations/20261025_004_profile_email_delivery.sql`.
 7. Si la migration 004 est déjà appliquée, exécutez ensuite `supabase/migrations/20261025_005_simplify_email_statuses.sql`. Elle conserve toutes les colonnes et convertit seulement les anciens états Resend vers les quatre états Gmail.
-8. Dans **Authentication > Providers > Email**, activez l'authentification par e-mail. CycloDash prend en charge aussi bien la confirmation par e-mail activée que désactivée.
+8. Exécutez `supabase/migrations/20261026_006_intelligent_training.sql`. Elle rend la FTP facultative, conserve les anciennes valeurs comme non vérifiées et ajoute préférences, historique FTP et ressenti sans supprimer de séance.
+9. Dans **Authentication > Providers > Email**, activez l'authentification par e-mail. CycloDash prend en charge aussi bien la confirmation par e-mail activée que désactivée.
 
 La clé présente dans `js/supabase.js` est une clé publique/publishable. N'ajoutez jamais de clé `service_role` au dépôt ou au navigateur.
 
@@ -69,6 +71,21 @@ Variables requises :
 - `EMAIL_WORKER_SECRET` : protège le worker planifié ;
 
 Supabase fournit automatiquement `SUPABASE_URL`, `SUPABASE_ANON_KEY` et `SUPABASE_SERVICE_ROLE_KEY` aux fonctions hébergées. Les nouveaux noms `SUPABASE_PUBLISHABLE_KEY` et `SUPABASE_SECRET_KEY` sont également acceptés.
+
+## Conseil Gemini facultatif
+
+Le calcul FTP et le classement initial restent entièrement locaux. Gemini reçoit seulement un résumé agrégé et les identifiants de séances déjà autorisés par le moteur déterministe.
+
+1. Ajoutez `GEMINI_API_KEY` aux secrets Supabase, jamais à `js/` ni à Git. `GEMINI_MODEL` est facultatif et vaut `gemini-2.5-flash` par défaut.
+2. Déployez la fonction authentifiée :
+
+   ```sh
+   supabase functions deploy training-advice
+   ```
+
+3. Vérifiez que la migration 006 est appliquée. La fonction contrôle le JWT, l’appartenance du profil, le quota horaire et le schéma de sortie.
+
+Sans clé, sans authentification, hors ligne ou lorsque le quota est atteint, l’interface conserve les recommandations locales.
 
 ### Sémantique et limites
 

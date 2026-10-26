@@ -7,6 +7,7 @@ function formatTime(seconds) {
 }
 
 function getZoneTargetString(zoneStr) {
+    if (!Number(state.ftp)) return 'au ressenti';
     switch(zoneStr) {
         case 'Z1': return `< ${Math.round(state.ftp * 0.55)} W`;
         case 'Z2': return `${Math.round(state.ftp * 0.55)} - ${Math.round(state.ftp * 0.75)} W`;
@@ -36,55 +37,13 @@ function selectWorkout(workoutId) {
         state.activeWorkout = null;
         alert("Entraînement libre sélectionné.");
     } else {
-        // Query FTP if not already configured in localStorage
-        const savedFtp = localStorage.getItem('userFTP');
-        if (!savedFtp) {
-            let input = prompt("Pour adapter les zones d'intensité de cet entraînement, veuillez renseigner votre FTP en Watts :\n(Si vous ne la connaissez pas, cliquez sur Annuler ou laissez vide)");
-            
-            if (input === null) {
-                // User cancelled the selection entirely, abort selection
-                return;
-            }
-            
-            let ftpVal = parseInt(input.trim());
-            if (!isNaN(ftpVal) && ftpVal > 0) {
-                state.ftp = ftpVal;
-                localStorage.setItem('userFTP', state.ftp);
-                const ftpInput = document.getElementById('ftpInput');
-                if (ftpInput) ftpInput.value = state.ftp;
-                if (window.updateZonesDisplay) window.updateZonesDisplay();
-                alert(`Parfait ! Votre FTP a été configurée à ${state.ftp} W.`);
-            } else {
-                // Level selector prompt
-                let level = prompt("Estimez votre niveau de cyclisme actuel pour configurer une FTP par défaut :\n\n1. Débutant (150 W)\n2. Intermédiaire (200 W)\n3. Semi-pro (280 W)\n4. Pro (350 W)\n\nEntrez le chiffre correspondant (1, 2, 3 ou 4) :");
-                
-                if (level === null) {
-                    // Abort selection if user cancelled level prompt
-                    return;
-                }
-                
-                let estimatedFtp = 200;
-                let levelName = "Intermédiaire";
-                const choice = level.trim();
-                
-                if (choice === '1') { estimatedFtp = 150; levelName = "Débutant"; }
-                else if (choice === '2') { estimatedFtp = 200; levelName = "Intermédiaire"; }
-                else if (choice === '3') { estimatedFtp = 280; levelName = "Semi-pro"; }
-                else if (choice === '4') { estimatedFtp = 350; levelName = "Pro"; }
-                else {
-                    alert("Choix invalide. Configuration par défaut en mode 'Intermédiaire' (200 W).");
-                }
-                
-                state.ftp = estimatedFtp;
-                localStorage.setItem('userFTP', state.ftp);
-                const ftpInput = document.getElementById('ftpInput');
-                if (ftpInput) ftpInput.value = state.ftp;
-                if (window.updateZonesDisplay) window.updateZonesDisplay();
-                alert(`Niveau "${levelName}" sélectionné. Votre FTP a été configurée à ${state.ftp} W.`);
-            }
+        const selectedWorkout = config.workoutsDB[workoutId];
+        if (!selectedWorkout) return;
+        if (selectedWorkout.requires_ftp && !Number(state.ftp)) {
+            alert('Cette séance nécessite une FTP connue. Vous pouvez saisir votre FTP, lancer le test guidé ou choisir une séance facile au ressenti.');
+            return;
         }
-        
-        state.activeWorkout = config.workoutsDB[workoutId];
+        state.activeWorkout = selectedWorkout;
         alert(`Entraînement "${state.activeWorkout.name}" sélectionné.`);
     }
     renderWorkoutStepList();

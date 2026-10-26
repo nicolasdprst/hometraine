@@ -22,8 +22,11 @@ Ce projet part d'un besoin simple :
 - **Mode Compteur Kiosk AMOLED** : interface épurée à très haut contraste conçue pour smartphone/tablette sur guidon (fond noir `#000000` économe en batterie, chiffres géants lisibles en plein effort).
 - **Maintien de l'écran allumé (Screen Wake Lock API)** : empêche la mise en veille automatique de la tablette ou du smartphone pendant la séance.
 - **Affichage télémétrique temps réel** : puissance instantanée en watts, vitesse estimée ou mesurée, cadence et travail mécanique intégré ($kJ$ et $kcal$).
-- **Suivi d'entraînements par intervalles** : séances prédéfinies (*Warmup & Endurance*, *Intervalles 30/30*, *Sweet Spot*) avec calcul dynamique des cibles de puissance et jauge de progression.
+- **Bibliothèque de 19 entraînements** : découverte, endurance, tempo, sweet spot, seuil, VO2max, récupération et test FTP guidé, avec cibles calculées localement.
 - **Zones d'intensité FTP personnalisées** : calcul automatique et repères visuels colorés des 6 zones d'effort (Z1 Récupération à Z6 Anaérobie) selon votre FTP.
+- **FTP facultative et estimation prudente** : démarrage sans FTP, analyse des efforts continus de 20 minutes et adoption toujours explicite et historisée.
+- **Recommandations adaptatives hors ligne** : séances expliquées selon l’objectif, la disponibilité, l’historique récent et le ressenti.
+- **Ressenti post-séance facultatif** : de « Très facile » à « Trop difficile », utilisé pour moduler les propositions suivantes.
 - **Graphique interactif temps réel** : tracé dynamique de l'effort via Chart.js.
 - **Mode démo intégré** : simulation d'un cycliste virtuel sur le plat pour tester l'interface et les entraînements sans capteur physique branché.
 
@@ -93,7 +96,8 @@ node tests/test_batch2_logic.js && \
 node tests/test_batch2_1_real_code.js && \
 node tests/test_batch3_ux.js && \
 node tests/test_batch4_analytics.js && \
-node tests/test_email_tcx.js
+node tests/test_email_tcx.js && \
+node tests/test_smart_training.js
 ```
 
 Consultez le guide dédié dans [tests/README.md](tests/README.md) pour le détail de la couverture de test.
@@ -132,6 +136,12 @@ Le code est organisé sans framework pour garantir une transparence totale, une 
 │   ├── bluetooth.js            # API Web Bluetooth, décodage GATT et mode démo
 │   ├── session.js              # Chronomètre, intégration de l'effort et Wake Lock
 │   ├── workout.js              # Moteur des entraînements par intervalles
+│   ├── training-library.js     # Bibliothèque déterministe de 19 séances
+│   ├── ftp-estimator.js        # Estimation FTP prudente et documentée
+│   ├── training-recommendations.js # Recommandations locales adaptatives
+│   ├── training-feedback.js    # Ressenti post-séance isolé par profil
+│   ├── training-ui.js          # Interface FTP, filtres et recommandations
+│   ├── gemini.js               # Client facultatif avec validation stricte
 │   ├── storage.js              # Couche de stockage local (LocalStorage & IndexedDB)
 │   ├── history.js              # Historique, exports XML TCX et synchronisation
 │   ├── analytics.js            # Moteur mathématique de performance (CycloAnalytics)
@@ -145,8 +155,8 @@ Le code est organisé sans framework pour garantir une transparence totale, une 
 ├── supabase/                   # Backend PostgreSQL & Edge Functions
 │   ├── README.md               # Guide d'installation et de configuration Supabase
 │   ├── config.toml             # Configuration du projet local Supabase
-│   ├── migrations/             # Migrations SQL versionnées (001 à 005)
-│   └── functions/              # Edge Functions Deno (send-session-email, worker cron)
+│   ├── migrations/             # Migrations SQL versionnées (001 à 006)
+│   └── functions/              # Edge Functions Deno (e-mail et conseil Gemini)
 │
 ├── google-apps-script/         # Passerelle d'envoi e-mail gratuite par Gmail
 │   ├── Code.gs                 # Script Google Apps Script Web App
@@ -159,7 +169,8 @@ Le code est organisé sans framework pour garantir une transparence totale, une 
 │   ├── test_batch2_1_real_code.js # Tests d'intégration sur le code réel
 │   ├── test_batch3_ux.js       # Tests du sélecteur de profils et des dialogues UX
 │   ├── test_batch4_analytics.js # Tests du moteur mathématique de performance
-│   └── test_email_tcx.js       # Tests de la file locale e-mail et de la sécurité RLS
+│   ├── test_email_tcx.js       # Tests de la file locale e-mail et de la sécurité RLS
+│   └── test_smart_training.js  # Tests FTP, séances, recommandations et ressenti
 │
 ├── docs/                       # Documentation annexe et médias
 │   ├── README.md               # Index de la documentation et ressources

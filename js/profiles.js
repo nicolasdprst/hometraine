@@ -52,7 +52,14 @@ const profilesManager = {
             const defaultProfile = {
                 id: createCycloDashId(),
                 display_name: 'Cycliste 1',
-                ftp_watts: state.ftp || 200,
+                ftp_watts: null,
+                ftp_origin: 'unknown',
+                ftp_confidence: 'unknown',
+                ftp_history: [],
+                training_goal: 'general_progress',
+                sessions_per_week: null,
+                session_duration_minutes: null,
+                intensity_preference: 'balanced',
                 avatar_color: '#3b82f6',
                 email_address: null,
                 email_auto_send: false,
@@ -91,7 +98,16 @@ const profilesManager = {
             email_format: 'tcx',
             owner_id: ownerId === 'anonymous' ? null : ownerId,
             sync_status: profile.sync_status || 'pending',
-            updated_at: profile.updated_at || profile.created_at || new Date(0).toISOString()
+            updated_at: profile.updated_at || profile.created_at || new Date(0).toISOString(),
+            ftp_watts: Number(profile.ftp_watts) > 0 ? Number(profile.ftp_watts) : null,
+            // Les anciens 200 W sont préservés, mais leur provenance reste explicitement inconnue.
+            ftp_origin: profile.ftp_origin || 'legacy_unknown',
+            ftp_confidence: profile.ftp_confidence || 'unknown',
+            ftp_history: Array.isArray(profile.ftp_history) ? profile.ftp_history : [],
+            training_goal: profile.training_goal || 'general_progress',
+            sessions_per_week: Number(profile.sessions_per_week) || null,
+            session_duration_minutes: Number(profile.session_duration_minutes) || null,
+            intensity_preference: profile.intensity_preference || 'balanced'
         }));
     },
 
@@ -175,10 +191,11 @@ const profilesManager = {
         localDataStore.setJSON('active_profile_id', profile.id);
 
         // Appliquer la FTP du profil
-        state.ftp = profile.ftp_watts || 200;
-        localStorage.setItem('userFTP', state.ftp);
+        state.ftp = Number(profile.ftp_watts) > 0 ? Number(profile.ftp_watts) : null;
+        if (state.ftp) localStorage.setItem('userFTP', state.ftp);
+        else localStorage.removeItem('userFTP');
         const ftpInput = document.getElementById('ftpInput');
-        if (ftpInput) ftpInput.value = state.ftp;
+        if (ftpInput) ftpInput.value = state.ftp || '';
         if (window.updateZonesDisplay) window.updateZonesDisplay();
 
         // Mettre à jour les indicateurs visuels du profil dans l'interface
@@ -196,6 +213,7 @@ const profilesManager = {
         if (shouldRenderHistory && window.renderHistory) {
             window.renderHistory();
         }
+        if (window.CycloTrainingUI) window.CycloTrainingUI.refresh();
 
         return true;
     },
@@ -218,7 +236,7 @@ const profilesManager = {
             kioskProfileAvatar.innerText = p ? this.getInitials(p.display_name) : 'CD';
         }
         const kioskProfileFtp = document.getElementById('kioskProfileFtp');
-        if (kioskProfileFtp) kioskProfileFtp.textContent = p ? `FTP ${p.ftp_watts || 200} W` : 'Sélection requise';
+        if (kioskProfileFtp) kioskProfileFtp.textContent = p ? (p.ftp_watts ? `FTP ${p.ftp_watts} W` : 'FTP inconnue') : 'Sélection requise';
 
         const globalProfileAvatar = document.getElementById('globalProfileAvatar');
         const globalProfileName = document.getElementById('globalProfileName');
@@ -228,7 +246,7 @@ const profilesManager = {
             globalProfileAvatar.textContent = p ? this.getInitials(p.display_name) : 'CD';
         }
         if (globalProfileName) globalProfileName.textContent = p ? p.display_name : 'Aucun profil';
-        if (globalProfileFtp) globalProfileFtp.textContent = p ? `FTP ${p.ftp_watts || 200} W` : 'Sélection requise';
+        if (globalProfileFtp) globalProfileFtp.textContent = p ? (p.ftp_watts ? `FTP ${p.ftp_watts} W` : 'FTP inconnue') : 'Sélection requise';
 
         const historyTitle = document.getElementById('historyTitle');
         const settingsTitle = document.getElementById('settingsTitle');
@@ -244,7 +262,7 @@ const profilesManager = {
         // Badge dans Paramètres
         const settingsCurrentProfile = document.getElementById('settingsCurrentProfile');
         if (settingsCurrentProfile) {
-            settingsCurrentProfile.innerText = p ? `${p.display_name} · FTP ${p.ftp_watts || 200} W` : 'Aucun profil sélectionné';
+            settingsCurrentProfile.innerText = p ? `${p.display_name} · ${p.ftp_watts ? `FTP ${p.ftp_watts} W` : 'FTP inconnue'}` : 'Aucun profil sélectionné';
         }
     },
 
@@ -289,7 +307,7 @@ const profilesManager = {
             const card = document.createElement('button');
             card.type = 'button';
             card.className = 'profile-card' + (this.activeProfile && this.activeProfile.id === p.id ? ' active' : '');
-            if (card.setAttribute) card.setAttribute('aria-label', `Choisir ${p.display_name}, FTP ${p.ftp_watts || 200} watts`);
+            if (card.setAttribute) card.setAttribute('aria-label', `Choisir ${p.display_name}, ${p.ftp_watts ? `FTP ${p.ftp_watts} watts` : 'FTP inconnue'}`);
             card.onclick = () => {
                 this.applyProfile(p, true);
             };
@@ -305,7 +323,7 @@ const profilesManager = {
             name.textContent = p.display_name;
             const ftp = document.createElement('div');
             ftp.className = 'profile-ftp';
-            ftp.textContent = `⚡ FTP : ${p.ftp_watts || 200} W`;
+            ftp.textContent = p.ftp_watts ? `⚡ FTP : ${p.ftp_watts} W` : '⚡ FTP inconnue';
             info.append(name, ftp);
             card.append(avatar, info);
             if (!this.activeProfile && this.lastProfileId === p.id) {
@@ -328,7 +346,14 @@ const profilesManager = {
         const newProfile = {
             id: createCycloDashId(),
             display_name: name.trim(),
-            ftp_watts: parseInt(ftp) || 200,
+            ftp_watts: parseInt(ftp) > 0 ? parseInt(ftp) : null,
+            ftp_origin: parseInt(ftp) > 0 ? 'manual' : 'unknown',
+            ftp_confidence: parseInt(ftp) > 0 ? 'manual' : 'unknown',
+            ftp_history: parseInt(ftp) > 0 ? [{ watts: parseInt(ftp), source: 'manual', confidence: 'manual', recorded_at: new Date().toISOString() }] : [],
+            training_goal: 'general_progress',
+            sessions_per_week: null,
+            session_duration_minutes: null,
+            intensity_preference: 'balanced',
             avatar_color: validProfileColor(color),
             email_address: normalizedEmail || null,
             email_auto_send: !!emailAutoSend,
@@ -366,7 +391,10 @@ const profilesManager = {
         if (!p) throw new Error("Profil introuvable");
 
         if (updates.display_name) p.display_name = updates.display_name.trim();
-        if (updates.ftp_watts) p.ftp_watts = parseInt(updates.ftp_watts) || 200;
+        if (Object.prototype.hasOwnProperty.call(updates, 'ftp_watts')) p.ftp_watts = parseInt(updates.ftp_watts) > 0 ? parseInt(updates.ftp_watts) : null;
+        ['ftp_origin', 'ftp_confidence', 'ftp_last_evaluated_at', 'ftp_history', 'ftp_pending_estimate', 'training_goal', 'sessions_per_week', 'session_duration_minutes', 'intensity_preference'].forEach(key => {
+            if (Object.prototype.hasOwnProperty.call(updates, key)) p[key] = updates[key];
+        });
         if (updates.avatar_color) p.avatar_color = validProfileColor(updates.avatar_color);
         if (typeof updates.is_archived === 'boolean') p.is_archived = updates.is_archived;
         if (updates.email_address !== undefined) {
@@ -475,7 +503,7 @@ const profilesManager = {
             name.textContent = p.display_name + (p.is_archived ? ' (archivé)' : '');
             const ftp = document.createElement('div');
             ftp.style.cssText = 'font-size:0.8rem;color:var(--text-secondary)';
-            ftp.textContent = `⚡ FTP : ${p.ftp_watts || 200} W · ${p.sync_status === 'synced' ? '☁️' : '⏳'}`;
+            ftp.textContent = `⚡ ${p.ftp_watts ? `FTP : ${p.ftp_watts} W` : 'FTP inconnue'} · ${p.sync_status === 'synced' ? '☁️' : '⏳'}`;
             const email = document.createElement('div');
             email.style.cssText = 'font-size:0.76rem;color:var(--text-secondary);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
             email.textContent = p.email_address
@@ -531,7 +559,7 @@ const profilesManager = {
             if (titleEl) titleEl.innerText = `Modifier le profil "${p.display_name}"`;
             if (editIdInput) editIdInput.value = editId;
             if (nameInput) nameInput.value = p.display_name;
-            if (ftpInput) ftpInput.value = p.ftp_watts || 200;
+            if (ftpInput) ftpInput.value = p.ftp_watts || '';
             if (emailInput) emailInput.value = p.email_address || '';
             if (emailAutoInput) emailAutoInput.checked = !!p.email_auto_send;
             this.selectFormColor(p.avatar_color || '#3b82f6');
@@ -539,7 +567,7 @@ const profilesManager = {
             if (titleEl) titleEl.innerText = "Nouveau Profil Cycliste";
             if (editIdInput) editIdInput.value = "";
             if (nameInput) nameInput.value = "";
-            if (ftpInput) ftpInput.value = 200;
+            if (ftpInput) ftpInput.value = '';
             if (emailInput) emailInput.value = '';
             if (emailAutoInput) emailAutoInput.checked = false;
             const colors = ['#3b82f6', '#10b981', '#f59e0b', '#ec4899', '#8b5cf6'];
@@ -608,7 +636,7 @@ const profilesManager = {
 
         const editId = editIdInput ? editIdInput.value : '';
         const name = nameInput ? nameInput.value.trim() : '';
-        const ftp = ftpInput ? parseInt(ftpInput.value) || 200 : 200;
+        const ftp = ftpInput && parseInt(ftpInput.value) > 0 ? parseInt(ftpInput.value) : null;
         const color = this.getSelectedFormColor();
         const emailAddress = normalizeProfileEmail(emailInput ? emailInput.value : '');
         const emailAutoSend = !!(emailAutoInput && emailAutoInput.checked);
@@ -628,14 +656,23 @@ const profilesManager = {
 
         try {
             if (editId) {
-                await this.updateProfile(editId, {
+                const existing = this.profiles.find(item => item.id === editId);
+                const updates = {
                     display_name: name,
                     ftp_watts: ftp,
                     avatar_color: color,
                     email_address: emailAddress || null,
                     email_auto_send: emailAutoSend,
                     email_format: 'tcx'
-                });
+                };
+                if ((existing && existing.ftp_watts) !== ftp) {
+                    updates.ftp_origin = ftp ? 'manual' : 'unknown';
+                    updates.ftp_confidence = ftp ? 'manual' : 'unknown';
+                    updates.ftp_pending_estimate = null;
+                    updates.ftp_history = Array.isArray(existing && existing.ftp_history) ? existing.ftp_history.slice() : [];
+                    if (ftp) updates.ftp_history.push({ watts: ftp, source: 'manual', confidence: 'manual', recorded_at: new Date().toISOString() });
+                }
+                await this.updateProfile(editId, updates);
             } else {
                 await this.createProfile(name, ftp, color, emailAddress, emailAutoSend);
             }

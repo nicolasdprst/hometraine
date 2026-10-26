@@ -1,5 +1,5 @@
-// Version: cyclodash-v22-gmail-tcx (upgraded from cyclodash-v21-email-tcx, cyclodash-v20-analytics-v4 and cyclodash-v19-ux-v3)
-const CACHE_NAME = 'cyclodash-v22-gmail-tcx';
+// Version: cyclodash-v23-smart-training (succède à cyclodash-v19-ux-v3, cyclodash-v20-analytics-v4 et v22-gmail-tcx)
+const CACHE_NAME = 'cyclodash-v23-smart-training';
 const ASSETS = [
   './index.html',
   './style.css',
@@ -13,14 +13,21 @@ const ASSETS = [
   './css/ux-v3.css',
   './css/session-detail.css',
   './css/email.css',
+  './css/training.css',
   './js/vendor/chart.umd.js',
   './js/state.js',
   './js/supabase.js',
   './js/storage.js',
   './js/profiles.js',
+  './js/training-library.js',
   './js/bluetooth.js',
   './js/workout.js',
   './js/analytics.js',
+  './js/ftp-estimator.js',
+  './js/training-recommendations.js',
+  './js/training-feedback.js',
+  './js/gemini.js',
+  './js/training-ui.js',
   './js/history.js',
   './js/email.js',
   './js/session-detail.js',

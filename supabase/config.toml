@@ -3,3 +3,6 @@ verify_jwt = true
 
 [functions.process-email-queue]
 verify_jwt = false
+
+[functions.training-advice]
+verify_jwt = true

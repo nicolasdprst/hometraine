@@ -24,7 +24,8 @@ node tests/test_batch2_logic.js && \
 node tests/test_batch2_1_real_code.js && \
 node tests/test_batch3_ux.js && \
 node tests/test_batch4_analytics.js && \
-node tests/test_email_tcx.js
+node tests/test_email_tcx.js && \
+node tests/test_smart_training.js
 ```
 
 ### Exécuter un test individuel
@@ -44,6 +45,7 @@ node tests/test_batch4_analytics.js
 | **`test_batch3_ux.js`** | Expérience Kiosk Multi-profils | - Affichage obligatoire du sélecteur "Qui pédale aujourd'hui ?" au démarrage<br>- Changement de profil actif sans fuite d'état en mémoire<br>- Gestion de la file de suppression différée (`deletion_queue`) |
 | **`test_batch4_analytics.js`** | Moteur d'analyse de performance | - Moyennes pondérées par la durée réelle inter-points (échantillonnage irrégulier)<br>- Variabilité, écart-type et coefficient de variation (CV)<br>- Meilleurs efforts sur fenêtres glissantes (5s, 60s, 300s, 1200s)<br>- Performance : analyse de 7 200 points (séance de 2h) en moins de 150 ms<br>- Répartition rigoureuse du temps par zones d'intensité FTP (Z1 à Z6)<br>- Robustesse face aux valeurs nulles, corrompues ou incomplètes |
 | **`test_email_tcx.js`** | Passerelle E-mail & Automatisations | - Déduplication et idempotence de la file d'attente locale `email_queue`<br>- Envoi automatique conditionné à la réussite de la synchronisation cloud<br>- Validation stricte des adresses e-mail destinataires<br>- Reprise sur incident réseau (retry) au rétablissement de la connexion (`online`)<br>- Vérification de la compatibilité des schémas SQL Supabase |
+| **`test_smart_training.js`** | Entraînement adaptatif | - Bibliothèque de 19 séances et cibles FTP<br>- Estimation FTP prudente (données insuffisantes, faciles, lacunaires ou aberrantes)<br>- Recommandations multi-profils et récupération<br>- Ressenti, validation Gemini, migration et cache hors ligne |
 
 ---
 
