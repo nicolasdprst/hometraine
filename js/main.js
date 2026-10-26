@@ -80,6 +80,7 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // --- GESTION DES ONGLETS ---
 window.switchTab = function(tabId) {
+    if (tabId === 'dashboard') tabId = 'compteur';
     state.currentTab = tabId;
 
     document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
@@ -91,14 +92,9 @@ window.switchTab = function(tabId) {
     const targetBtn = document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`);
     if (targetBtn) targetBtn.classList.add('active');
 
-    // Si on bascule sur le Dashboard et qu'une séance est en cours,
-    // on rafraîchit immédiatement le graphique qui était en veille
-    if (tabId === 'dashboard') {
-        renderChartData();
-        updateWorkoutBanner();
-    }
     if (tabId === 'compteur') {
         updateKioskWorkoutBanner();
+        if (window.CycloUI && window.CycloUI.renderCounter) window.CycloUI.renderCounter();
     }
     updateLiveMetrics();
 

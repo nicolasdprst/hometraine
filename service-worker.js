@@ -1,19 +1,13 @@
-// Version: cyclodash-v24-smart-training-fixes (succède à cyclodash-v19-ux-v3, cyclodash-v20-analytics-v4 et v22-gmail-tcx)
-const CACHE_NAME = 'cyclodash-v24-smart-training-fixes';
+// Version: cyclodash-v25-ui-redesign
+const CACHE_NAME = 'cyclodash-v25-ui-redesign';
 const ASSETS = [
   './index.html',
-  './style.css',
   './css/variables.css',
   './css/base.css',
-  './css/layout.css',
-  './css/components.css',
-  './css/dashboard.css',
-  './css/compteur.css',
-  './css/responsive.css',
-  './css/ux-v3.css',
+  './css/app.css',
   './css/session-detail.css',
   './css/email.css',
-  './css/training.css',
+  './fonts/inter-latin.woff2',
   './js/vendor/chart.umd.js',
   './js/state.js',
   './js/supabase.js',
@@ -32,6 +26,7 @@ const ASSETS = [
   './js/email.js',
   './js/session-detail.js',
   './js/session.js',
+  './js/ui-redesign.js',
   './js/main.js',
   './manifest.json',
   './icons/cyclodash.svg',

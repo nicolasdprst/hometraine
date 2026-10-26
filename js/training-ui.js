@@ -99,7 +99,17 @@
         const w = item.workout || item;
         const minutes = Math.round(w.duration_seconds / 60);
         const selected = root.state && root.state.activeWorkout && root.state.activeWorkout.id === w.id;
-        return `<article class="training-card${selected ? ' selected' : ''}" data-category="${escapeHtml(w.category)}" data-duration="${minutes}" data-difficulty="${w.difficulty}"><div><span class="training-category">${escapeHtml(w.category)}</span><h3>${escapeHtml(w.name)}</h3><p>${escapeHtml(w.description)}</p>${reason ? `<p class="recommendation-reason">${escapeHtml(reason)}</p>` : ''}<div class="training-meta">${minutes} min · Difficulté ${w.difficulty}/5 · ${escapeHtml(w.objective)}</div></div><div class="training-card-actions"><button class="btn btn-secondary btn-sm" onclick="CycloTrainingUI.showWorkout('${w.id}')">Détails</button><button class="btn btn-primary btn-sm" onclick="selectWorkout('${w.id}')">${selected ? '✓ Sélectionné' : 'Sélectionner'}</button></div></article>`;
+        const total = Math.max(1, w.duration_seconds);
+        let x = 0;
+        const bars = w.steps.map(step => {
+            const width = step.duration / total * 100;
+            const height = Math.max(8, Math.min(44, (step.target_pct || .5) / 1.35 * 44));
+            const bar = `<rect x="${x.toFixed(2)}" y="${(46 - height).toFixed(2)}" width="${Math.max(.8, width - .6).toFixed(2)}" height="${height.toFixed(2)}" rx="1" class="${selected ? 'profile-accent' : ''}"></rect>`;
+            x += width;
+            return bar;
+        }).join('');
+        const reasonMarkup = reason ? `<p class="recommendation-reason">${escapeHtml(reason)}</p>` : '';
+        return `<article class="training-card${selected ? ' selected' : ''}" role="button" tabindex="0" aria-label="Voir ${escapeHtml(w.name)}" data-category="${escapeHtml(w.category)}" data-duration="${minutes}" data-difficulty="${w.difficulty}" onclick="CycloTrainingUI.showWorkout('${w.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CycloTrainingUI.showWorkout('${w.id}')}"><svg class="training-card-profile" viewBox="0 0 100 48" preserveAspectRatio="none" aria-hidden="true">${bars}</svg><div class="training-card-copy"><span class="training-category">${escapeHtml(w.category)}</span><h3>${escapeHtml(w.name)}</h3><p>${minutes} min · Difficulté ${w.difficulty}/5</p>${reasonMarkup}</div><div class="training-card-actions"><button class="btn btn-primary" onclick="event.stopPropagation();selectWorkout('${w.id}')">${selected ? 'Choisi' : 'Choisir'}</button></div></article>`;
     }
 
     function renderWorkouts() {
@@ -112,8 +122,8 @@
         if (selectedStatus) {
             const selected = root.state && root.state.activeWorkout;
             selectedStatus.innerHTML = selected
-                ? `<div><strong>Entraînement sélectionné : ${escapeHtml(selected.name)}</strong><span>${Math.round(selected.duration_seconds / 60)} min · ${escapeHtml(selected.objective)}</span></div><button class="btn btn-secondary btn-sm" onclick="selectWorkout(null)">Repasser en roule libre</button>`
-                : '<div><strong>Mode roule libre</strong><span>Aucun intervalle ni cible structurée sélectionné.</span></div>';
+                ? `<div><span><strong>${escapeHtml(selected.name)}</strong><span>${Math.round(selected.duration_seconds / 60)} min · ${escapeHtml(selected.objective)}</span></span><button class="text-action" onclick="selectWorkout(null)">Roule libre</button></div>`
+                : '<div><span><strong>Mode roule libre</strong><span>Aucun intervalle structuré</span></span></div>';
         }
         rec.innerHTML = result.recommendations.map(item => workoutCard(item, item.reason)).join('');
         all.innerHTML = root.CycloTrainingLibrary.list.map(item => workoutCard(item)).join('');
@@ -162,10 +172,12 @@
         currentSession = session;
         const modal = document.getElementById('postSessionModal');
         if (!modal) return;
-        document.getElementById('postSessionSummary').textContent = `${Math.round(session.duration_seconds / 60)} min · ${session.avg_power_watts} W de moyenne · ${session.workout_name}`;
+        document.getElementById('postSessionTitle').textContent = session.workout_name || 'Votre bilan';
+        document.getElementById('postSessionSummary').textContent = `${new Date(session.started_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${Math.round(session.duration_seconds / 60)} min`;
         const next = root.CycloTrainingRecommendations.recommend(activeProfile(), ownSessions(), root.CycloTrainingLibrary, 1).recommendations[0];
         const nextEl = document.getElementById('postSessionNext');
         if (nextEl) nextEl.textContent = next ? `Prochaine séance suggérée : ${next.workout.name}. ${next.reason}` : '';
+        if (root.CycloUI) root.CycloUI.renderPostSession(session);
         modal.style.display = 'flex';
     }
     function submitFeedback(rating) {
@@ -173,9 +185,31 @@
         root.CycloTrainingFeedback.save(currentSession.id, currentSession.profile_id, rating);
         document.getElementById('postSessionModal').style.display = 'none';
         root.showAppToast(`Ressenti enregistré : ${FEEDBACK_LABELS[rating]}.`);
+        currentSession = null;
         renderWorkouts();
     }
     function skipFeedback() { document.getElementById('postSessionModal').style.display = 'none'; currentSession = null; }
+    function keepCurrentSession() {
+        document.getElementById('postSessionModal').style.display = 'none';
+        root.showAppToast('Séance conservée dans votre historique.');
+        currentSession = null;
+    }
+    async function discardCurrentSession() {
+        if (!currentSession || !root.deleteSessionById) return;
+        const id = currentSession.id;
+        await root.deleteSessionById(id);
+        const stillExists = root.getStoredSessions && root.getStoredSessions().some(session => session.id === id);
+        if (!stillExists) {
+            document.getElementById('postSessionModal').style.display = 'none';
+            currentSession = null;
+        }
+    }
+    function exportCurrentSession() {
+        if (currentSession && root.exportTCXById) root.exportTCXById(currentSession.id);
+    }
+    function emailCurrentSession() {
+        if (currentSession && root.CycloEmail) root.CycloEmail.openForSession(currentSession);
+    }
 
     async function requestGeminiAdvice() {
         const p = activeProfile();
@@ -201,5 +235,5 @@
     }
 
     function refresh() { renderFtpPanel(); loadPreferences(); renderWorkouts(); }
-    root.CycloTrainingUI = Object.freeze({ refresh, renderWorkouts, filterWorkouts, showWorkout, analyzeFtp, decideFtp, savePreferences, showPostSession, submitFeedback, skipFeedback, requestGeminiAdvice });
+    root.CycloTrainingUI = Object.freeze({ refresh, renderWorkouts, filterWorkouts, showWorkout, analyzeFtp, decideFtp, savePreferences, showPostSession, submitFeedback, skipFeedback, keepCurrentSession, discardCurrentSession, exportCurrentSession, emailCurrentSession, requestGeminiAdvice });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -2,560 +2,238 @@
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
-    <link rel="manifest" href="manifest.json">
-    <meta name="theme-color" content="#000000">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <meta name="theme-color" content="#0E1013">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="manifest.json">
     <title>CycloDash</title>
-    <script src="js/vendor/chart.umd.js"></script>
     <link rel="stylesheet" href="css/variables.css">
     <link rel="stylesheet" href="css/base.css">
-    <link rel="stylesheet" href="css/layout.css">
-    <link rel="stylesheet" href="css/components.css">
-    <link rel="stylesheet" href="css/dashboard.css">
-    <link rel="stylesheet" href="css/compteur.css">
-    <link rel="stylesheet" href="css/responsive.css">
-    <link rel="stylesheet" href="css/ux-v3.css">
     <link rel="stylesheet" href="css/session-detail.css">
     <link rel="stylesheet" href="css/email.css">
-    <link rel="stylesheet" href="css/training.css">
+    <link rel="stylesheet" href="css/app.css">
 </head>
 <body>
-
-    <!-- Toast de mise à jour Service Worker non intrusif -->
-    <div id="updateToast" class="update-toast" style="display: none;">
+    <div id="updateToast" class="update-toast" style="display:none">
         <span id="updateToastText">Nouvelle version prête</span>
-        <button id="applyUpdateBtn" class="btn-update">Mettre à jour</button>
+        <button id="applyUpdateBtn" class="btn btn-primary">Mettre à jour</button>
     </div>
 
-    <!-- OVERLAY SÉLECTION DE PROFIL : "QUI PÉDALE AUJOURD'HUI ?" -->
-    <div id="profilePickerOverlay" class="profile-picker-overlay" role="dialog" aria-modal="true" aria-labelledby="profilePickerTitle">
-        <div class="profile-picker-modal">
-            <div class="profile-picker-header">
-                <div class="profile-picker-brand">CYCLO<span>DASH</span></div>
-                <div id="profilePickerTitle" class="profile-picker-title">Qui pédale aujourd'hui&nbsp;?</div>
-                <div class="profile-picker-sub">Choisissez votre profil avant d'accéder au compteur</div>
-            </div>
-            <div id="pickerProfilesGrid" class="picker-profiles-grid">
-                <!-- Injecté par profilesManager -->
-            </div>
-
-            <!-- Formulaire intégré de création / édition de profil -->
-            <div id="profileFormBox" style="display: none; background: #0c1220; border: 1px solid rgba(255,255,255,0.1); border-radius: 0.85rem; padding: 1rem; margin-bottom: 1rem;">
-                <div style="font-weight: 700; color: var(--text-primary); margin-bottom: 0.75rem;" id="profileFormTitle">Nouveau Profil</div>
+    <div id="profilePickerOverlay" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="profilePickerTitle">
+        <div class="modal-card profile-picker-modal">
+            <div class="modal-kicker">CYCLODASH</div>
+            <h1 id="profilePickerTitle">Qui pédale aujourd’hui&nbsp;?</h1>
+            <p class="muted">Choisissez votre profil avant d’accéder au compteur.</p>
+            <div id="pickerProfilesGrid" class="picker-profiles-grid"></div>
+            <div id="profileFormBox" class="profile-form" style="display:none">
+                <h2 id="profileFormTitle">Nouveau profil</h2>
                 <input type="hidden" id="profileFormEditId" value="">
-                <div style="margin-bottom: 0.75rem;">
-                    <label style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Prénom ou Pseudonyme :</label>
-                    <input type="text" id="profileFormNameInput" class="form-control" placeholder="ex: Nicolas" style="margin-top: 0.25rem;">
-                </div>
-                <div style="margin-bottom: 0.75rem;">
-                    <label style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">FTP en Watts (facultative) :</label>
-                    <input type="number" id="profileFormFtpInput" class="form-control" placeholder="Laisser vide si inconnue" value="" style="margin-top: 0.25rem;">
-                </div>
-                <div class="profile-email-fields">
-                    <label for="profileFormEmailInput">Adresse e-mail du cycliste <span>(facultative)</span></label>
-                    <input type="email" id="profileFormEmailInput" class="form-control" inputmode="email" autocomplete="email" placeholder="cycliste@exemple.fr">
-                    <p id="profileFormEmailError" class="form-error" role="alert"></p>
-                    <label class="email-auto-option" for="profileFormEmailAutoInput">
-                        <input type="checkbox" id="profileFormEmailAutoInput">
-                        <span>Recevoir automatiquement mes séances par e-mail</span>
-                    </label>
-                    <p class="form-help">Le fichier TCX sera envoyé lorsque la synchronisation cloud sera terminée.</p>
-                </div>
-                <div style="margin-bottom: 0.75rem;">
-                    <label style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">Couleur d'avatar :</label>
-                    <div style="display: flex; gap: 0.5rem; margin-top: 0.4rem;" id="profileFormColorOptions">
-                        <span class="color-dot active" data-color="#3b82f6" style="background:#3b82f6; width:26px; height:26px; border-radius:50%; cursor:pointer; border:2px solid #fff;"></span>
-                        <span class="color-dot" data-color="#10b981" style="background:#10b981; width:26px; height:26px; border-radius:50%; cursor:pointer;"></span>
-                        <span class="color-dot" data-color="#f59e0b" style="background:#f59e0b; width:26px; height:26px; border-radius:50%; cursor:pointer;"></span>
-                        <span class="color-dot" data-color="#ec4899" style="background:#ec4899; width:26px; height:26px; border-radius:50%; cursor:pointer;"></span>
-                        <span class="color-dot" data-color="#8b5cf6" style="background:#8b5cf6; width:26px; height:26px; border-radius:50%; cursor:pointer;"></span>
+                <label for="profileFormNameInput">Prénom ou pseudonyme</label>
+                <input type="text" id="profileFormNameInput" class="form-control" placeholder="Nicolas">
+                <label for="profileFormFtpInput">FTP en watts <span class="muted">(facultative)</span></label>
+                <input type="number" id="profileFormFtpInput" class="form-control" placeholder="Inconnue">
+                <label for="profileFormEmailInput">Adresse e-mail <span class="muted">(facultative)</span></label>
+                <input type="email" id="profileFormEmailInput" class="form-control" inputmode="email" autocomplete="email" placeholder="cycliste@exemple.fr">
+                <p id="profileFormEmailError" class="form-error" role="alert"></p>
+                <label class="check-row" for="profileFormEmailAutoInput">
+                    <input type="checkbox" id="profileFormEmailAutoInput">
+                    <span>Recevoir automatiquement mes séances par e-mail</span>
+                </label>
+                <fieldset class="color-fieldset">
+                    <legend>Couleur d’avatar</legend>
+                    <div id="profileFormColorOptions" class="color-options">
+                        <span class="color-dot active" data-color="#3b82f6" style="background:#3b82f6"></span>
+                        <span class="color-dot" data-color="#10b981" style="background:#10b981"></span>
+                        <span class="color-dot" data-color="#f59e0b" style="background:#f59e0b"></span>
+                        <span class="color-dot" data-color="#ec4899" style="background:#ec4899"></span>
+                        <span class="color-dot" data-color="#8b5cf6" style="background:#8b5cf6"></span>
                     </div>
-                </div>
-                <div style="display: flex; gap: 0.5rem; margin-top: 1rem;">
-                    <button class="btn btn-sm btn-success" style="flex: 1;" onclick="profilesManager.submitProfileForm()">Enregistrer</button>
-                    <button class="btn btn-sm btn-secondary" onclick="profilesManager.hideProfileForm()">Annuler</button>
+                </fieldset>
+                <div class="button-row">
+                    <button class="btn btn-primary" onclick="profilesManager.submitProfileForm()">Enregistrer</button>
+                    <button class="btn btn-secondary" onclick="profilesManager.hideProfileForm()">Annuler</button>
                 </div>
             </div>
-
-            <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;" id="pickerDefaultButtons">
-                <button class="btn btn-primary" style="flex: 1;" onclick="profilesManager.showProfileForm()">➕ Ajouter un profil</button>
+            <div id="pickerDefaultButtons" class="button-row">
+                <button class="btn btn-primary" onclick="profilesManager.showProfileForm()">Ajouter un profil</button>
                 <button id="pickerCloseBtn" class="btn btn-secondary" onclick="profilesManager.hidePicker()">Fermer</button>
             </div>
         </div>
     </div>
 
-    <nav>
-        <button class="tab-btn active" onclick="switchTab('compteur')"><span class="tab-icon">🚴</span><span class="tab-label">Compteur</span></button>
-        <button class="tab-btn" onclick="switchTab('dashboard')"><span class="tab-icon">📊</span><span class="tab-label">Dashboard</span></button>
-        <button class="tab-btn" onclick="switchTab('workouts')"><span class="tab-icon">🏋️</span><span class="tab-label">Entraînements</span></button>
-        <button class="tab-btn" onclick="switchTab('history')"><span class="tab-icon">📜</span><span class="tab-label">Historique</span></button>
-        <button class="tab-btn" onclick="switchTab('settings')"><span class="tab-icon">⚙️</span><span class="tab-label">Paramètres</span></button>
-    </nav>
-
-    <div id="globalProfileBar" class="global-profile-bar" aria-live="polite">
-        <div class="global-profile-identity">
-            <span id="globalProfileAvatar" class="global-profile-avatar">CD</span>
-            <span class="global-profile-copy">
-                <strong id="globalProfileName">Aucun profil</strong>
-                <span id="globalProfileFtp">Sélection requise</span>
-            </span>
-        </div>
-        <button class="btn btn-secondary btn-profile-change" onclick="profilesManager.showPicker()">Changer</button>
-    </div>
-
-    <div class="container">
-        <!-- COMPTEUR TAB (MODE KIOSK AMOLED PAR DÉFAUT) -->
-        <div id="compteur" class="tab-content active">
-            <!-- Topbar compacte avec état BLE, Profil actif et Wake Lock -->
-            <div class="kiosk-topbar">
-                <div class="kiosk-ble-indicator">
+    <main class="app-shell">
+        <section id="compteur" class="tab-content active" aria-labelledby="counterTitle">
+            <h1 id="counterTitle" class="visually-hidden">Compteur</h1>
+            <div class="counter-topbar">
+                <div class="ble-status" aria-live="polite">
                     <span id="kioskBleDot" class="kiosk-ble-dot"></span>
-                    <span id="kioskBleText" class="kiosk-ble-text">Prêt à scanner</span>
-                    <span id="kioskWakeLockBadge" class="kiosk-wakelock-badge">☀️ Écran actif</span>
+                    <span id="kioskBleText">Déconnecté</span>
+                    <span id="status" class="visually-hidden">Déconnecté</span>
                 </div>
-                
-                <div style="display: flex; align-items: center; gap: 0.4rem;">
-                    <!-- Badge de profil cliquable pour changement rapide -->
-                    <div id="kioskProfileBadge" class="kiosk-profile-pill" onclick="profilesManager.showPicker()" title="Changer de cycliste">
-                        <span id="kioskProfileAvatar" class="kiosk-profile-avatar">CD</span>
-                        <span class="kiosk-profile-copy">
-                            <strong id="kioskProfileName" class="kiosk-profile-name">Profil</strong>
-                            <span id="kioskProfileFtp" class="kiosk-profile-ftp">FTP -- W</span>
-                        </span>
-                        <span class="kiosk-profile-change">Changer</span>
+                <button id="kioskProfileBadge" class="profile-chip" onclick="profilesManager.showPicker()" aria-label="Changer de profil">
+                    <span id="kioskProfileAvatar" class="profile-avatar">CD</span>
+                    <span><strong id="kioskProfileName">Profil</strong><small id="kioskProfileFtp">FTP -- W</small></span>
+                </button>
+            </div>
+
+            <div class="connect-row">
+                <button id="kioskConnectBtn" class="btn btn-primary btn-wide">Connecter le home trainer</button>
+                <button id="kioskDemoBtn" class="btn btn-secondary" style="display:none">Mode démo</button>
+            </div>
+
+            <article id="kioskWorkoutBanner" class="workout-live-card" aria-live="polite">
+                <div class="workout-live-head">
+                    <div>
+                        <span class="eyebrow">Séance sélectionnée</span>
+                        <strong id="kioskWorkoutNameDisplay">Roule libre</strong>
                     </div>
-
-                    <div class="kiosk-top-actions">
-                        <button id="kioskConnectBtn" class="btn-kiosk btn-primary">🔗 Connecter</button>
-                        <button id="kioskDemoBtn" class="btn-kiosk" style="display: none; background: #6366f1; color: #fff;">🎮 Démo</button>
-                    </div>
+                    <span id="kioskWorkoutTimeDisplay" class="time-chip">--:--</span>
                 </div>
-            </div>
+                <div id="workoutTimeline" class="workout-timeline" role="img" aria-label="Profil de l’entraînement"></div>
+                <div class="timeline-footer"><span id="kioskWorkoutTargetDisplay">Sans cible</span><span id="workoutElapsedDisplay">00:00 / --:--</span></div>
+            </article>
 
-            <!-- Bandeau entraînement compact en mode Compteur -->
-            <div id="kioskWorkoutBanner" class="kiosk-workout-banner">
-                <div class="kiosk-workout-header">
-                    <span id="kioskWorkoutNameDisplay" class="kiosk-workout-name">Entraînement</span>
-                    <span id="kioskWorkoutTimeDisplay" class="kiosk-workout-time">--:--</span>
+            <section id="kioskWattsCard" class="power-hero" aria-live="polite">
+                <span class="eyebrow">Puissance</span>
+                <div class="power-reading"><strong id="kioskWattsVal">0</strong><span>W</span></div>
+                <div id="targetStatusBadge" class="target-badge neutral">Pas de cible</div>
+                <p id="targetDetailDisplay" class="target-detail">Roule libre</p>
+                <div class="power-secondary">
+                    <span><small>Moyenne</small><strong><span id="kioskAvgWattsVal">0</span> W</strong></span>
+                    <span><small>Maximum</small><strong><span id="wattsMaxVal">0</span> W</strong></span>
                 </div>
-                <div id="kioskWorkoutTargetDisplay" class="kiosk-workout-target">Cible : --- W</div>
-            </div>
-
-            <!-- HERO METRIC : VITESSE INSTANTANÉE (LISIBLE À 1 MÈTRE) -->
-            <div class="kiosk-hero-card">
-                <div class="kiosk-metric-label">Vitesse Instantanée</div>
-                <div class="kiosk-speed-display">
-                    <span id="kioskSpeedVal" class="kiosk-speed-val">0.0</span>
-                    <span class="kiosk-speed-unit">km/h</span>
-                </div>
-            </div>
-
-            <!-- GRILLE 2 : PUISSANCE INSTANTANÉE & MOYENNE -->
-            <div class="kiosk-grid-2">
-                <div class="kiosk-sub-card" id="kioskWattsCard">
-                    <div class="kiosk-metric-label">⚡ Puissance</div>
-                    <div class="kiosk-val-container">
-                        <span id="kioskWattsVal" class="kiosk-watts-val">0</span>
-                        <span class="kiosk-metric-unit">W</span>
-                    </div>
-                </div>
-                <div class="kiosk-sub-card">
-                    <div class="kiosk-metric-label">⚡ Moyenne</div>
-                    <div class="kiosk-val-container">
-                        <span id="kioskAvgWattsVal" class="kiosk-sub-val">0</span>
-                        <span class="kiosk-metric-unit">W</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- GRILLE 3 : DURÉE & DISTANCE -->
-            <div class="kiosk-grid-2">
-                <div class="kiosk-sub-card">
-                    <div class="kiosk-metric-label">⏱ Durée</div>
-                    <div class="kiosk-val-container">
-                        <span id="kioskDurationVal" class="kiosk-sub-val">00:00</span>
-                    </div>
-                </div>
-                <div class="kiosk-sub-card">
-                    <div class="kiosk-metric-label">📏 Distance</div>
-                    <div class="kiosk-val-container">
-                        <span id="kioskDistanceVal" class="kiosk-sub-val">0.00</span>
-                        <span class="kiosk-metric-unit">km</span>
-                    </div>
-                </div>
-            </div>
-
-            <!-- BOUTONS D'ACTION TACTILES PLEINES TOUCHES -->
-            <div class="kiosk-action-bar">
-                <button id="kioskStartBtn" class="btn-action btn-success" style="display: none;">▶ Démarrer</button>
-                <button id="kioskStopBtn" class="btn-action btn-danger" style="display: none;">⏹ TERMINER LA SÉANCE</button>
-            </div>
-        </div>
-
-        <!-- DASHBOARD TAB (MODE CLASSIQUE COMPLET AVEC GRAPHIQUE) -->
-        <div id="dashboard" class="tab-content">
-            <header>
-                <h1>CycloDash</h1>
-                <p id="status" class="status">Prêt à scanner</p>
-            </header>
-
-            <div class="controls" id="connectionControls">
-                <button id="connectBtn" class="btn btn-primary" style="width: 100%;">🔗 Connecter le Home Trainer</button>
-                <button id="demoBtn" class="btn btn-primary" style="display: none; width: 100%; background: #6366f1;">🎮 Mode Démo</button>
-            </div>
-
-            <div class="controls" id="sessionControls" style="display: none;">
-                <button id="startBtn" class="btn btn-success">▶ Démarrer</button>
-                <button id="stopBtn" class="btn btn-danger" style="display: none;">⏹ TERMINER</button>
-            </div>
-
-            <div id="workoutBanner" class="glass workout-banner">
-                <div class="metric-title" id="workoutNameDisplay">Entraînement en cours</div>
-                <div class="workout-target" id="workoutTargetDisplay">Cible : --- W</div>
-                <div class="metric-sub" id="workoutTimeDisplay">Temps restant intervalle : --:--</div>
-                <div class="zone-indicator" style="margin-top: 0.5rem;"><div id="zoneBar" class="zone-bar"></div></div>
-                <div id="workoutStepList" class="workout-step-list"></div>
-            </div>
-
-            <div class="dashboard-grid" id="metricsGrid">
-                <div class="glass metric-card" id="wattsCard">
-                    <div class="metric-title">⚡ Puissance</div>
-                    <div class="metric-value" id="wattsVal">0</div>
-                    <div class="metric-unit">Watts</div>
-                    <div class="metric-sub" id="avgWattsVal">Moyenne: 0 W</div>
-                </div>
-            </div>
-            <div class="mobile-grid-2">
-                <div class="glass metric-card">
-                    <div class="metric-title">🚴 Vitesse</div>
-                    <div class="metric-value" id="speedVal">0.0</div>
-                    <div class="metric-unit">km/h</div>
-                    <div class="metric-sub" id="avgSpeedVal">Moyenne: 0.0 km/h</div>
-                </div>
-                <div class="glass metric-card">
-                    <div class="metric-title">⏱ Durée</div>
-                    <div class="metric-value" id="durationVal">00:00</div>
-                    <div class="metric-sub" id="distanceVal">📏 0.0 km</div>
-                </div>
-            </div>
-
-            <div class="glass chart-container">
-                <canvas id="mainChart"></canvas>
-            </div>
-
-            <!-- STATS EXTRA GRID -->
-            <div class="stats-header">
-                <h2>Performance Session</h2>
-            </div>
-            <div class="stats-extra-grid">
-                <div class="glass stat-extra-card">
-                    <div class="stat-extra-icon">⚡</div>
-                    <div class="stat-extra-info">
-                        <div class="stat-extra-title">Puissance Max</div>
-                        <div class="stat-extra-value"><span id="wattsMaxVal">0</span> <span class="stat-extra-unit">W</span></div>
-                    </div>
-                </div>
-                <div class="glass stat-extra-card">
-                    <div class="stat-extra-icon">🚴</div>
-                    <div class="stat-extra-info">
-                        <div class="stat-extra-title">Vitesse Max</div>
-                        <div class="stat-extra-value"><span id="speedMaxVal">0.0</span> <span class="stat-extra-unit">km/h</span></div>
-                    </div>
-                </div>
-                <div class="glass stat-extra-card">
-                    <div class="stat-extra-icon">🔥</div>
-                    <div class="stat-extra-info">
-                        <div class="stat-extra-title">Énergie</div>
-                        <div class="stat-extra-value"><span id="caloriesVal">0</span> <span class="stat-extra-unit">kcal</span></div>
-                    </div>
-                </div>
-                <div class="glass stat-extra-card">
-                    <div class="stat-extra-icon">📊</div>
-                    <div class="stat-extra-info">
-                        <div class="stat-extra-title">Travail Total</div>
-                        <div class="stat-extra-value"><span id="workVal">0</span> <span class="stat-extra-unit">kJ</span></div>
-                    </div>
-                </div>
-            </div>
-            
-            <div id="logConsole"></div>
-        </div>
-
-        <!-- WORKOUTS TAB -->
-        <div id="workouts" class="tab-content">
-            <header>
-                <h1>Entraînements</h1>
-                <p class="status">Des séances adaptées, disponibles même hors ligne</p>
-            </header>
-            <div id="selectedWorkoutStatus" class="selected-workout-status glass" aria-live="polite"></div>
-            <section class="training-section">
-                <h2>Recommandés pour vous</h2>
-                <div id="recommendedWorkouts" class="training-grid"><p class="training-empty">Sélectionnez un profil pour obtenir des recommandations.</p></div>
-                <div class="gemini-advice"><button id="geminiAdviceBtn" class="btn btn-secondary btn-sm" onclick="CycloTrainingUI.requestGeminiAdvice()">Conseil personnalisé Gemini (facultatif)</button><p id="geminiAdviceText" class="history-meta" role="status"></p></div>
             </section>
-            <section class="training-section">
-                <div class="training-section-heading"><h2>Tous les entraînements</h2><button class="btn btn-secondary btn-sm" onclick="selectWorkout(null)">Roule libre</button></div>
-                <div class="workout-filters glass">
-                    <select id="workoutCategoryFilter" class="form-control" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Tous les objectifs</option><option>Découverte</option><option>Endurance</option><option>Tempo / Sweet Spot</option><option>Seuil</option><option>VO2max</option><option>Récupération</option><option>Évaluation</option></select>
-                    <select id="workoutDurationFilter" class="form-control" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Toutes les durées</option><option value="30">30 min maximum</option><option value="45">45 min maximum</option><option value="60">60 min maximum</option><option value="90">90 min maximum</option></select>
-                    <select id="workoutDifficultyFilter" class="form-control" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Toutes difficultés</option><option value="2">Facile (≤ 2)</option><option value="3">Modérée (≤ 3)</option><option value="5">Toutes (≤ 5)</option></select>
+
+            <div class="ride-stats" aria-label="Statistiques en direct">
+                <div><small>Vitesse</small><strong><span id="kioskSpeedVal">0.0</span> <span>km/h</span></strong></div>
+                <div><small>Durée</small><strong id="kioskDurationVal">00:00</strong></div>
+                <div><small>Distance</small><strong><span id="kioskDistanceVal">0.00</span> <span>km</span></strong></div>
+            </div>
+
+            <div class="session-actions">
+                <button id="kioskStartBtn" class="btn btn-primary btn-wide" style="display:none">Démarrer</button>
+                <button id="kioskPauseBtn" class="btn btn-secondary" style="display:none">Pause</button>
+                <button id="kioskStopBtn" class="btn btn-danger" style="display:none">Terminer</button>
+            </div>
+
+        </section>
+
+        <section id="workouts" class="tab-content" aria-labelledby="workoutsTitle">
+            <header class="page-header"><div><span class="eyebrow">Bibliothèque</span><h1 id="workoutsTitle">Séances</h1></div></header>
+            <div id="selectedWorkoutStatus" class="selected-workout-status" aria-live="polite"></div>
+            <section class="content-section">
+                <div class="section-heading"><h2>Recommandé pour vous</h2><span class="muted">Selon votre profil</span></div>
+                <div id="recommendedWorkouts" class="training-grid"><p class="empty-state">Sélectionnez un profil pour obtenir des recommandations.</p></div>
+                <div class="gemini-advice">
+                    <button id="geminiAdviceBtn" class="text-action" onclick="CycloTrainingUI.requestGeminiAdvice()">Obtenir un conseil personnalisé avec Gemini</button>
+                    <p id="geminiAdviceText" class="muted" role="status"></p>
+                </div>
+            </section>
+            <section class="content-section">
+                <div class="section-heading"><h2>Toutes les séances</h2><button class="text-action" onclick="selectWorkout(null)">Roule libre</button></div>
+                <div class="filter-pills" aria-label="Filtres des entraînements">
+                    <label><span>Objectif</span><select id="workoutCategoryFilter" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Tous</option><option>Découverte</option><option>Endurance</option><option>Tempo / Sweet Spot</option><option>Seuil</option><option>VO2max</option><option>Récupération</option><option>Évaluation</option></select></label>
+                    <label><span>Durée</span><select id="workoutDurationFilter" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Toutes</option><option value="30">≤ 30 min</option><option value="45">≤ 45 min</option><option value="60">≤ 60 min</option><option value="90">≤ 90 min</option></select></label>
+                    <label><span>Niveau</span><select id="workoutDifficultyFilter" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Tous</option><option value="2">Facile</option><option value="3">Modéré</option><option value="5">Tous niveaux</option></select></label>
                 </div>
                 <div id="allWorkouts" class="training-grid"></div>
             </section>
+        </section>
+
+        <section id="history" class="tab-content" aria-labelledby="historyTitle">
+            <header class="page-header"><div><span class="eyebrow">Progression</span><h1 id="historyTitle">Historique</h1></div></header>
+            <div id="legacyMigrationBanner" class="notice-card" style="display:none">
+                <div><strong>Anciennes activités détectées</strong><small><span id="legacySessionCount">0</span> séance(s) à importer.</small></div>
+                <button class="btn btn-secondary" onclick="migrateLegacyHistory()">Importer</button>
             </div>
-
-        <!-- HISTORY TAB (INDIVIDUEL PAR PROFIL) -->
-        <div id="history" class="tab-content">
-            <header>
-                <h1 id="historyTitle">Historique</h1>
-                <p class="status">Vos activités passées</p>
-            </header>
-
-            <!-- Bandeau de migration d'anciennes séances -->
-            <div id="legacyMigrationBanner" class="glass legacy-banner" style="display: none;">
-                <div>
-                    <div style="font-weight: 700; color: var(--text-primary); font-size: 0.9rem;">📜 Anciennes activités détectées</div>
-                    <div style="font-size: 0.8rem; color: var(--text-secondary);"><span id="legacySessionCount">0</span> séance(s) de l'ancien historique trouvée(s).</div>
-                </div>
-                <button class="btn btn-sm btn-primary" onclick="migrateLegacyHistory()">Importer ici</button>
+            <div id="personalStatsContainer" class="history-summary" style="display:none">
+                <div><strong id="statTotalSessions">0</strong><small>Séances</small></div>
+                <div><strong id="statTotalTime">0m</strong><small>Temps</small></div>
+                <div><strong id="statTotalDist">0 km</strong><small>Distance</small></div>
+                <div class="summary-secondary"><strong id="statAvgWatts">0 W</strong><small>Moyenne</small></div>
+                <div><strong id="stat30Days">0</strong><small>30 jours</small></div>
             </div>
+            <div id="historyList" class="history-list"><div class="empty-state">Aucune activité enregistrée.</div></div>
+        </section>
 
-            <!-- Bloc Statistiques Personnelles Agrégées -->
-            <div id="personalStatsContainer" class="glass" style="display: none; padding: 0.85rem; margin-bottom: 1.25rem;">
-                <div style="font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--text-secondary); font-weight: 700; margin-bottom: 0.6rem;">
-                    📊 Vos Statistiques Cumulées
-                </div>
-                <div class="personal-stats-grid">
-                    <div class="personal-stat-card">
-                        <div id="statTotalSessions" class="personal-stat-value">0</div>
-                        <div class="personal-stat-label">Séances</div>
+        <section id="settings" class="tab-content" aria-labelledby="settingsTitle">
+            <header class="page-header"><div><span class="eyebrow">CycloDash</span><h1 id="settingsTitle">Réglages</h1></div></header>
+            <div class="settings-stack">
+                <section class="settings-group">
+                    <h2>Profil</h2>
+                    <button class="settings-row" onclick="profilesManager.showPicker()"><span><strong>Profil actif</strong><small id="settingsCurrentProfile">Chargement…</small></span><span class="row-chevron">›</span></button>
+                    <div class="settings-form-row"><label for="ftpInput">FTP personnelle</label><div class="inline-input"><input type="number" id="ftpInput" class="form-control" placeholder="Inconnue"><span>W</span><button class="btn btn-secondary" onclick="saveSettings()">Enregistrer</button></div></div>
+                    <div id="settingsProfilesList" class="settings-profiles-list"></div>
+                    <button class="text-action settings-link" onclick="profilesManager.promptCreateProfile()">Ajouter un profil</button>
+                </section>
+
+                <section class="settings-group">
+                    <h2>Entraînement</h2>
+                    <div class="settings-form-row"><strong>FTP intelligente</strong><div id="ftpSmartStatus" class="ftp-smart-status">Sélectionnez un profil.</div><div class="button-row"><button id="analyzeFtpBtn" class="btn btn-primary" onclick="CycloTrainingUI.analyzeFtp()">Analyser</button><button class="btn btn-secondary" onclick="selectWorkout('ftp-test-20'); switchTab('compteur')">Test FTP</button></div><details><summary>Historique FTP</summary><ul id="ftpHistoryList" class="ftp-history-list"></ul></details></div>
+                    <div class="preferences-grid">
+                        <label>Objectif<select id="trainingGoalInput" class="form-control"><option value="restart">Reprise</option><option value="endurance">Endurance</option><option value="general_progress">Progression générale</option><option value="ftp">Amélioration FTP</option><option value="performance">Performance</option></select></label>
+                        <label>Séances par semaine<input id="sessionsPerWeekInput" class="form-control" type="number" min="1" max="7" placeholder="Facultatif"></label>
+                        <label>Durée habituelle<input id="sessionDurationInput" class="form-control" type="number" min="15" max="180" step="5" placeholder="Minutes"></label>
+                        <label>Intensité<select id="intensityPreferenceInput" class="form-control"><option value="gentle">Plutôt douce</option><option value="balanced">Équilibrée</option><option value="intense">Plutôt intense</option></select></label>
                     </div>
-                    <div class="personal-stat-card">
-                        <div id="statTotalTime" class="personal-stat-value">0m</div>
-                        <div class="personal-stat-label">Temps</div>
+                    <button class="btn btn-primary" onclick="CycloTrainingUI.savePreferences()">Enregistrer les préférences</button>
+                    <div id="zonesDisplay" class="zones-list" style="display:none"><h3>Zones estimées</h3><span>Z1 <b id="z1Val"></b></span><span>Z2 <b id="z2Val"></b></span><span>Z3 <b id="z3Val"></b></span><span>Z4 <b id="z4Val"></b></span><span>Z5 <b id="z5Val"></b></span><span>Z6 <b id="z6Val"></b></span></div>
+                </section>
+
+                <section class="settings-group">
+                    <h2>Synchronisation</h2>
+                    <div class="settings-form-row"><strong>Compte Supabase</strong><p id="supabaseAccountStatus" class="muted">Vérification…</p>
+                        <div id="supabaseLoginForm" class="login-form"><input type="email" id="supabaseEmailInput" class="form-control" placeholder="E-mail"><input type="password" id="supabasePasswordInput" class="form-control" placeholder="Mot de passe"><div class="button-row"><button class="btn btn-primary" onclick="handleSupabaseLogin()">Se connecter</button><button class="btn btn-secondary" onclick="handleSupabaseSignup()">Créer un compte</button></div></div>
+                        <div id="supabaseLoggedInBox" style="display:none"><p>Connecté : <strong id="supabaseUserEmail"></strong></p><div class="button-row"><button class="btn btn-primary" onclick="processSyncQueue()">Synchroniser</button><button class="btn btn-danger" onclick="handleSupabaseLogout()">Déconnexion</button></div></div>
                     </div>
-                    <div class="personal-stat-card">
-                        <div id="statTotalDist" class="personal-stat-value">0 km</div>
-                        <div class="personal-stat-label">Distance</div>
-                    </div>
-                    <div class="personal-stat-card">
-                        <div id="statAvgWatts" class="personal-stat-value">0 W</div>
-                        <div class="personal-stat-label">Puiss. Moy</div>
-                    </div>
-                    <div class="personal-stat-card">
-                        <div id="stat30Days" class="personal-stat-value">0</div>
-                        <div class="personal-stat-label">30 j.</div>
-                    </div>
-                </div>
+                </section>
+
+                <section class="settings-group">
+                    <h2>Affichage</h2>
+                    <label class="settings-row toggle-row" for="zoneFeedbackToggle"><span><strong>Retour visuel de cible</strong><small>Teinte discrète selon votre puissance</small></span><span class="switch"><input type="checkbox" id="zoneFeedbackToggle" checked><span class="slider"></span></span></label>
+                    <div class="settings-row"><span><strong>Maintien de l’écran</strong><small id="wakeLockSettingStatus">Vérification…</small></span></div>
+                    <button class="settings-row" onclick="toggleFullscreen()"><span><strong>Plein écran</strong><small>Masquer l’interface du navigateur</small></span><span class="row-chevron">›</span></button>
+                </section>
+
+                <section class="settings-group">
+                    <h2>Avancé</h2>
+                    <label class="settings-row toggle-row" for="devModeToggle"><span><strong>Mode développeur</strong><small>Active le home trainer de démonstration</small></span><span class="switch"><input type="checkbox" id="devModeToggle" onchange="toggleDevMode()"><span class="slider"></span></span></label>
+                </section>
             </div>
+        </section>
+    </main>
 
-            <!-- Liste des séances du profil actif -->
-            <div class="glass" id="historyList">
-                <div style="padding: 2rem; text-align: center; color: var(--text-secondary);">Aucune activité enregistrée.</div>
-            </div>
-        </div>
+    <nav class="bottom-nav" aria-label="Navigation principale">
+        <button class="tab-btn active" onclick="switchTab('compteur')" aria-label="Compteur"><span class="nav-icon" aria-hidden="true">●</span><span>Compteur</span></button>
+        <button class="tab-btn" onclick="switchTab('workouts')" aria-label="Séances"><span class="nav-icon nav-bars" aria-hidden="true">▥</span><span>Séances</span></button>
+        <button class="tab-btn" onclick="switchTab('history')" aria-label="Historique"><span class="nav-icon" aria-hidden="true">↗</span><span>Historique</span></button>
+        <button class="tab-btn" onclick="switchTab('settings')" aria-label="Réglages"><span class="nav-icon" aria-hidden="true">◌</span><span>Réglages</span></button>
+    </nav>
 
-        <!-- SETTINGS TAB (GESTION MULTI-PROFILS & SUPABASE) -->
-        <div id="settings" class="tab-content">
-            <header>
-                <h1 id="settingsTitle">Paramètres</h1>
-                <p class="status">Personnalisez votre expérience</p>
-            </header>
-            <div class="glass" style="padding: 1.75rem 1.25rem;">
-                
-                <!-- Section Profil Actif & Multi-profils -->
-                <div class="form-group" style="margin-bottom: 2rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <label style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary);">👤 Profil Cycliste Actif</label>
-                        <button class="btn btn-sm btn-primary" onclick="profilesManager.showPicker()">Changer ⇄</button>
-                    </div>
-                    <div id="settingsCurrentProfile" style="font-size: 0.95rem; color: var(--accent); font-weight: 600; margin-bottom: 0.75rem;">
-                        Chargement...
-                    </div>
-                    
-                    <div style="margin-top: 1rem;">
-                        <label for="ftpInput">FTP personnelle (Watts) :</label>
-                        <input type="number" id="ftpInput" class="form-control" placeholder="Laisser vide si inconnue" value="">
-                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.4rem;">
-                            Sert à calculer vos zones d'entraînement personnelles.
-                        </p>
-                    </div>
+    <div id="deleteSessionModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteSessionTitle" style="display:none"><div class="modal-card"><span class="modal-kicker danger-text">Suppression</span><h2 id="deleteSessionTitle">Supprimer cette séance&nbsp;?</h2><p id="deleteSessionDescription" class="muted">Cette action supprimera l’activité et ses mesures enregistrées.</p><div class="button-row"><button id="cancelDeleteSessionBtn" class="btn btn-secondary">Annuler</button><button id="confirmDeleteSessionBtn" class="btn btn-danger">Supprimer</button></div></div></div>
+    <div id="sessionDetailsModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="sessionDetailsTitle" style="display:none"><div class="modal-card session-details-dialog"><h2 id="sessionDetailsTitle">Détails de la séance</h2><div id="sessionDetailsContent" class="session-details-content"></div><button id="closeSessionDetailsBtn" class="btn btn-primary btn-wide">Fermer</button></div></div>
+    <div id="workoutDetailModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="workoutDetailTitle" style="display:none"><div class="modal-card workout-detail-card"><h2 id="workoutDetailTitle"></h2><div id="workoutDetailContent"></div><button class="btn btn-primary btn-wide" onclick="document.getElementById('workoutDetailModal').style.display='none'">Fermer</button></div></div>
+    <div id="ftpProposalModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ftpProposalTitle" style="display:none"><div class="modal-card"><span class="modal-kicker">Analyse</span><h2 id="ftpProposalTitle">Proposition de FTP</h2><p id="ftpProposalText"></p><p id="ftpProposalExplanation" class="muted"></p><div class="button-row"><button class="btn btn-primary" onclick="CycloTrainingUI.decideFtp('accept')">Accepter</button><button class="btn btn-secondary" onclick="CycloTrainingUI.decideFtp('defer')">Plus tard</button><button class="btn btn-danger" onclick="CycloTrainingUI.decideFtp('reject')">Refuser</button></div></div></div>
 
-                    <section class="smart-settings-card">
-                        <h3>FTP intelligente</h3>
-                        <div id="ftpSmartStatus" class="ftp-smart-status">Sélectionnez un profil.</div>
-                        <div class="smart-actions"><button id="analyzeFtpBtn" class="btn btn-primary" onclick="CycloTrainingUI.analyzeFtp()">Analyser mes performances</button><button class="btn btn-secondary" onclick="selectWorkout('ftp-test-20'); switchTab('compteur')">Effectuer un test FTP</button></div>
-                        <details><summary>Historique des évolutions FTP</summary><ul id="ftpHistoryList" class="ftp-history-list"></ul></details>
-                    </section>
-
-                    <section class="smart-settings-card">
-                        <h3>Objectifs et préférences</h3>
-                        <div class="preferences-grid">
-                            <label>Objectif<select id="trainingGoalInput" class="form-control"><option value="restart">Reprise ou remise en forme</option><option value="endurance">Amélioration de l’endurance</option><option value="general_progress">Progression générale</option><option value="ftp">Amélioration de la FTP</option><option value="performance">Performance / intensif</option></select></label>
-                            <label>Séances par semaine<input id="sessionsPerWeekInput" class="form-control" type="number" min="1" max="7" placeholder="Facultatif"></label>
-                            <label>Durée habituelle<input id="sessionDurationInput" class="form-control" type="number" min="15" max="180" step="5" placeholder="Minutes"></label>
-                            <label>Préférence d’intensité<select id="intensityPreferenceInput" class="form-control"><option value="gentle">Plutôt douce</option><option value="balanced">Équilibrée</option><option value="intense">Plutôt intense</option></select></label>
-                        </div>
-                        <button class="btn btn-success" onclick="CycloTrainingUI.savePreferences()">Enregistrer mes préférences</button>
-                    </section>
-
-                    <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
-                        <button class="btn btn-success" onclick="saveSettings()">Enregistrer ma FTP</button>
-                        <button class="btn btn-secondary" onclick="profilesManager.promptCreateProfile()">➕ Nouveau Profil</button>
-                    </div>
-
-                    <!-- Liste des profils pour édition / archivage / suppression -->
-                    <div style="margin-top: 1.5rem;">
-                        <div style="font-size: 0.85rem; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 0.5rem;">
-                            Tous les profils de l'installation :
-                        </div>
-                        <div id="settingsProfilesList" style="display: flex; flex-direction: column; gap: 0.4rem;">
-                            <!-- Injecté par profilesManager -->
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section Compte d'installation Supabase -->
-                <div class="form-group" style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
-                    <label style="font-weight: 700; font-size: 1.05rem; color: var(--text-primary);">☁️ Compte d'installation Supabase</label>
-                    <p id="supabaseAccountStatus" style="font-size: 0.85rem; margin-top: 0.25rem; font-weight: 600;">
-                        Vérification...
-                    </p>
-                    
-                    <!-- Formulaire de connexion / inscription installation -->
-                    <div id="supabaseLoginForm" style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.6rem;">
-                        <p style="font-size: 0.8rem; color: var(--text-secondary);">
-                            Connectez un compte familial pour synchroniser automatiquement les profils et les séances dans le cloud.
-                        </p>
-                        <input type="email" id="supabaseEmailInput" class="form-control" placeholder="Email d'installation (ex: foyer@cyclodash.fr)">
-                        <input type="password" id="supabasePasswordInput" class="form-control" placeholder="Mot de passe">
-                        <div style="display: flex; gap: 0.5rem; margin-top: 0.25rem;">
-                            <button class="btn btn-primary" style="flex: 1;" onclick="handleSupabaseLogin()">Se connecter</button>
-                            <button class="btn btn-secondary" style="flex: 1;" onclick="handleSupabaseSignup()">Créer compte</button>
-                        </div>
-                    </div>
-
-                    <!-- Boîte état connecté -->
-                    <div id="supabaseLoggedInBox" style="display: none; margin-top: 0.75rem;">
-                        <div style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 0.75rem;">
-                            Connecté en tant que : <strong id="supabaseUserEmail" style="color: var(--text-primary);"></strong>
-                        </div>
-                        <div style="display: flex; gap: 0.5rem;">
-                            <button class="btn btn-sm btn-primary" onclick="processSyncQueue()">☁️ Synchroniser maintenant</button>
-                            <button class="btn btn-sm btn-danger" onclick="handleSupabaseLogout()">Déconnexion</button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Section Mode Développeur -->
-                <div class="form-group" style="margin-top: 2rem; display: flex; align-items: center; justify-content: space-between; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
-                    <div>
-                        <label for="devModeToggle" style="margin-bottom: 0; font-weight: 600; color: var(--text-primary);">Mode Développeur</label>
-                        <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.25rem;">
-                            Affiche le bouton "Mode Démo" pour tester sans home trainer.
-                        </p>
-                    </div>
-                    <label class="switch">
-                        <input type="checkbox" id="devModeToggle" onchange="toggleDevMode()">
-                        <span class="slider round"></span>
-                    </label>
-                </div>
-
-                <!-- Section Maintien de l'écran (Wake Lock) -->
-                <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
-                    <label style="font-weight: 600; color: var(--text-primary);">Maintien de l'écran allumé (Screen Wake Lock)</label>
-                    <p id="wakeLockSettingStatus" style="font-size: 0.85rem; margin-top: 0.35rem; font-weight: 500;">
-                        Vérification...
-                    </p>
-                    <p style="font-size: 0.78rem; color: var(--text-secondary); margin-top: 0.5rem; line-height: 1.4;">
-                        💡 <em>Note pour Android 7 / Galaxy S6 :</em> Si votre smartphone éteint l'écran malgré le Wake Lock, vous pouvez régler la mise en veille sur 30 minutes dans <strong>Paramètres Android > Affichage</strong> ou activer l'option <strong>"Rester actif pendant la charge"</strong> dans les <strong>Options de développement</strong> d'Android.
-                    </p>
-                </div>
-
-                <!-- Section Mode Plein Écran manuel -->
-                <div class="form-group" style="margin-top: 1.5rem; padding-top: 1.5rem; border-top: 1px solid var(--card-border);">
-                    <label style="font-weight: 600; color: var(--text-primary);">Affichage Plein Écran</label>
-                    <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.35rem; margin-bottom: 0.75rem;">
-                        Permet de masquer la barre d'adresse de Chrome si la PWA est exécutée depuis le navigateur.
-                    </p>
-                    <button class="btn btn-primary" onclick="toggleFullscreen()">Basculer en Plein Écran</button>
-                </div>
-
-                <div id="zonesDisplay" style="margin-top: 2rem; display: none;">
-                    <h3>Vos Zones Estimées</h3>
-                    <div style="display: grid; gap: 0.5rem; margin-top: 1rem; font-size: 0.9rem;">
-                        <div style="color: var(--z1);">Z1 (Récupération) : <span id="z1Val"></span></div>
-                        <div style="color: var(--z2);">Z2 (Endurance) : <span id="z2Val"></span></div>
-                        <div style="color: var(--z3);">Z3 (Tempo) : <span id="z3Val"></span></div>
-                        <div style="color: var(--z4);">Z4 (Seuil) : <span id="z4Val"></span></div>
-                        <div style="color: var(--z5);">Z5 (VO2 Max) : <span id="z5Val"></span></div>
-                        <div style="color: var(--z6);">Z6 (Anaérobie) : <span id="z6Val"></span></div>
-                    </div>
-                </div>
-            </div>
+    <div id="postSessionModal" class="session-summary" role="dialog" aria-modal="true" aria-labelledby="postSessionTitle" style="display:none">
+        <div class="summary-sheet">
+            <header class="summary-header"><span class="eyebrow">Séance terminée</span><h1 id="postSessionTitle">Votre bilan</h1><p id="postSessionSummary" class="muted"></p></header>
+            <div id="postSessionGraph" class="summary-graph"></div>
+            <section><h2>Temps dans la cible</h2><div id="postSessionTargetBar" class="target-time-bar"></div><div id="postSessionTargetLegend" class="target-legend"></div></section>
+            <div id="postSessionStats" class="summary-stats"></div>
+            <p id="postSessionNext" class="recommendation-reason"></p>
+            <div class="button-row"><button class="btn btn-secondary" onclick="CycloTrainingUI.exportCurrentSession()">Exporter TCX</button><button class="btn btn-secondary" onclick="CycloTrainingUI.emailCurrentSession()">Envoyer par e-mail</button></div>
+            <section><h2>Comment avez-vous trouvé cette séance&nbsp;?</h2><div class="feedback-grid"><button onclick="CycloTrainingUI.submitFeedback('very_easy')">Très facile</button><button onclick="CycloTrainingUI.submitFeedback('easy')">Facile</button><button onclick="CycloTrainingUI.submitFeedback('appropriate')">Adaptée</button><button onclick="CycloTrainingUI.submitFeedback('difficult')">Difficile</button><button onclick="CycloTrainingUI.submitFeedback('too_difficult')">Trop difficile</button></div></section>
+            <div class="summary-actions"><button class="btn btn-primary btn-wide" onclick="CycloTrainingUI.keepCurrentSession()">Conserver la séance</button><button class="text-action danger-text" onclick="CycloTrainingUI.discardCurrentSession()">Ne pas conserver</button></div>
         </div>
     </div>
 
-    <div id="deleteSessionModal" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="deleteSessionTitle" style="display:none;">
-        <div class="confirm-dialog">
-            <div class="confirm-icon" aria-hidden="true">🗑️</div>
-            <h2 id="deleteSessionTitle">Supprimer cette séance&nbsp;?</h2>
-            <p id="deleteSessionDescription">Cette action supprimera l'activité et ses mesures enregistrées.</p>
-            <div class="confirm-actions">
-                <button id="cancelDeleteSessionBtn" class="btn btn-secondary">Annuler</button>
-                <button id="confirmDeleteSessionBtn" class="btn btn-danger">Supprimer définitivement</button>
-            </div>
-        </div>
-    </div>
+    <div id="emailSessionModal" class="modal-overlay email-modal" role="dialog" aria-modal="true" aria-labelledby="emailSessionTitle" style="display:none"><div class="modal-card"><span class="modal-kicker">Export</span><h2 id="emailSessionTitle">Envoyer la séance par e-mail</h2><p id="emailSessionSummary" class="muted"></p><label for="emailRecipientInput">Destinataire</label><input type="email" id="emailRecipientInput" class="form-control" inputmode="email" autocomplete="email" placeholder="cycliste@exemple.fr"><p id="emailRecipientError" class="form-error" role="alert"></p><div class="email-attachment-row"><span>Fichier joint</span><strong>Activité TCX</strong></div><p id="emailSendStatus" role="status"></p><div class="button-row"><button id="cancelEmailSessionBtn" class="btn btn-secondary">Annuler</button><button id="sendEmailSessionBtn" class="btn btn-primary">Envoyer</button></div></div></div>
+    <div id="sessionAnalyticsView" role="dialog" aria-modal="true" aria-label="Analyse de séance"><div id="analyticsLoader"><div class="sa-loader-spinner"></div><div>Chargement de l’analyse…</div></div><div id="analyticsContent"></div></div>
+    <div id="appToast" class="app-toast" role="status" aria-live="polite" style="display:none"></div>
 
-    <div id="sessionDetailsModal" class="confirm-overlay" role="dialog" aria-modal="true" aria-labelledby="sessionDetailsTitle" style="display:none;">
-        <div class="confirm-dialog session-details-dialog">
-            <h2 id="sessionDetailsTitle">Détails de la séance</h2>
-            <div id="sessionDetailsContent" class="session-details-content"></div>
-            <div class="confirm-actions">
-                <button id="closeSessionDetailsBtn" class="btn btn-primary">Fermer</button>
-            </div>
-        </div>
-    </div>
-
-    <div id="appToast" class="app-toast" role="status" aria-live="polite" style="display:none;"></div>
-
-    <div id="workoutDetailModal" class="confirm-overlay" role="dialog" aria-modal="true" style="display:none;"><div class="confirm-dialog training-dialog"><h2 id="workoutDetailTitle"></h2><div id="workoutDetailContent"></div><div class="confirm-actions"><button class="btn btn-primary" onclick="document.getElementById('workoutDetailModal').style.display='none'">Fermer</button></div></div></div>
-
-    <div id="ftpProposalModal" class="confirm-overlay" role="dialog" aria-modal="true" style="display:none;"><div class="confirm-dialog training-dialog"><h2>Proposition de FTP</h2><p id="ftpProposalText"></p><p id="ftpProposalExplanation" class="history-meta"></p><div class="confirm-actions ftp-actions"><button class="btn btn-success" onclick="CycloTrainingUI.decideFtp('accept')">Accepter</button><button class="btn btn-secondary" onclick="CycloTrainingUI.decideFtp('defer')">Plus tard</button><button class="btn btn-danger" onclick="CycloTrainingUI.decideFtp('reject')">Refuser</button></div></div></div>
-
-    <div id="postSessionModal" class="confirm-overlay" role="dialog" aria-modal="true" style="display:none;"><div class="confirm-dialog training-dialog"><h2>Séance terminée</h2><p id="postSessionSummary"></p><p id="postSessionNext" class="recommendation-reason"></p><h3>Comment avez-vous trouvé cette séance ?</h3><div class="feedback-grid"><button onclick="CycloTrainingUI.submitFeedback('very_easy')">Très facile</button><button onclick="CycloTrainingUI.submitFeedback('easy')">Facile</button><button onclick="CycloTrainingUI.submitFeedback('appropriate')">Adaptée</button><button onclick="CycloTrainingUI.submitFeedback('difficult')">Difficile</button><button onclick="CycloTrainingUI.submitFeedback('too_difficult')">Trop difficile</button></div><button class="btn btn-secondary" onclick="CycloTrainingUI.skipFeedback()">Ignorer</button></div></div>
-
-    <div id="emailSessionModal" class="confirm-overlay email-modal" role="dialog" aria-modal="true" aria-labelledby="emailSessionTitle" style="display:none;">
-        <div class="confirm-dialog">
-            <div class="email-modal-icon" aria-hidden="true">✉️</div>
-            <h2 id="emailSessionTitle">Envoyer la séance par e-mail</h2>
-            <p id="emailSessionSummary" class="email-session-summary"></p>
-            <label for="emailRecipientInput">Destinataire</label>
-            <input type="email" id="emailRecipientInput" class="form-control" inputmode="email" autocomplete="email" placeholder="cycliste@exemple.fr">
-            <p id="emailRecipientError" class="form-error" role="alert"></p>
-            <div class="email-attachment-row"><span>📎 Fichier joint</span><strong>Activité TCX</strong></div>
-            <p id="emailSendStatus" class="email-send-status" aria-live="polite"></p>
-            <div class="confirm-actions">
-                <button id="cancelEmailSessionBtn" class="btn btn-secondary">Annuler</button>
-                <button id="sendEmailSessionBtn" class="btn btn-primary">Envoyer</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- BATCH 4 : Vue d'analyse de séance (overlay plein écran) -->
-    <div id="sessionAnalyticsView" role="dialog" aria-modal="true" aria-label="Analyse de séance">
-        <div id="analyticsLoader">
-            <div class="sa-loader-spinner"></div>
-            <div>Chargement de l'analyse…</div>
-        </div>
-        <div id="analyticsContent"></div>
-    </div>
-
-    <!-- Scripts dans l'ordre de dépendance -->
     <script src="js/vendor/chart.umd.js"></script>
     <script src="js/state.js"></script>
     <script src="js/supabase.js"></script>
@@ -574,6 +252,7 @@
     <script src="js/session-detail.js"></script>
     <script src="js/session.js"></script>
     <script src="js/bluetooth.js"></script>
+    <script src="js/ui-redesign.js"></script>
     <script src="js/main.js"></script>
 </body>
 </html>

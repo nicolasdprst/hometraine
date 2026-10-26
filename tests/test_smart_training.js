@@ -74,6 +74,6 @@ const sw = fs.readFileSync(path.join(root, 'service-worker.js'), 'utf8');
 const edgeFunction = fs.readFileSync(path.join(root, 'supabase/functions/training-advice/index.ts'), 'utf8');
 assert(edgeFunction.includes('thinkingBudget: 0'), 'Gemini 2.5 Flash doit réserver le budget à la réponse JSON');
 const trainingUi = fs.readFileSync(path.join(root, 'js/training-ui.js'), 'utf8');
-assert(trainingUi.includes('Entraînement sélectionné'), 'la sélection doit rester visible');
+assert(trainingUi.includes('selectedWorkoutStatus'), 'la sélection doit rester visible');
 
 console.log('✓ Smart training: 19 séances, FTP, recommandations, ressenti, Gemini et migration validés');

@@ -136,6 +136,8 @@ function startSession() {
         return;
     }
     state.isRecording = true;
+    state.isPaused = false;
+    state.pauseStartedMonotonic = null;
     state.sessionStatus = 'recording';
     state.currentSessionId = createCycloDashId();
     state.sessionProfileId = activeProfile.id;
@@ -201,6 +203,7 @@ function startSession() {
     
     // Synchroniser les contrôles (afficher bouton TERMINER sur Compteur & Dashboard)
     syncControlsUI();
+    if (window.CycloUI) window.CycloUI.renderCounter();
     
     if (sessionTickInterval) clearInterval(sessionTickInterval);
     sessionTickInterval = setInterval(tick, 1000);
@@ -209,8 +212,10 @@ function startSession() {
 // --- FIN DE SESSION ---
 function stopSession() {
     if (!state.isRecording) return;
-    tick();
+    if (!state.isPaused) tick();
     state.isRecording = false;
+    state.isPaused = false;
+    state.pauseStartedMonotonic = null;
     state.sessionStatus = 'stopped';
     state.stopTime = new Date();
     if (sessionTickInterval) {
@@ -243,13 +248,14 @@ function stopSession() {
         updateBleStatusUI('connected', state.bleDeviceName);
     }
     syncControlsUI();
+    if (window.CycloUI) window.CycloUI.renderCounter();
     
     saveSessionToHistory();
 }
 
 // --- TICK DE MESURE (CHAQUE SECONDE) ---
 function tick() {
-    if (!state.isRecording) return;
+    if (!state.isRecording || state.isPaused) return;
 
     const nowMonotonic = monotonicNow();
     const nowWall = Date.now();
@@ -352,6 +358,8 @@ function tick() {
     state.sessionData.speed.push(speedValue);
     state.sessionData.distance.push(state.totalDistanceM);
 
+    if (window.CycloUI) window.CycloUI.renderCounter();
+
     // Sauvegarde de reprise toutes les 30 secondes de temps réellement écoulé.
     if (state.elapsedTime - lastBackupElapsed >= 30) {
         lastBackupElapsed = state.elapsedTime;
@@ -440,6 +448,13 @@ function updateKioskWorkoutBanner() {
 
     if (!state.activeWorkout) {
         banner.classList.remove('active');
+        const nameEl = document.getElementById('kioskWorkoutNameDisplay');
+        const timeEl = document.getElementById('kioskWorkoutTimeDisplay');
+        const targetEl = document.getElementById('kioskWorkoutTargetDisplay');
+        if (nameEl) nameEl.innerText = 'Roule libre';
+        if (timeEl) timeEl.innerText = '--:--';
+        if (targetEl) targetEl.innerText = 'Sans cible';
+        if (window.CycloUI) window.CycloUI.renderCounter();
         return;
     }
     banner.classList.add('active');
@@ -474,6 +489,7 @@ function updateKioskWorkoutBanner() {
 
     const color = getZoneColor(step.type);
     banner.style.borderLeftColor = color;
+    if (window.CycloUI) window.CycloUI.renderCounter();
 }
 
 // Expositions globales

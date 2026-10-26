@@ -113,21 +113,15 @@ Le code est organisé sans framework pour garantir une transparence totale, une 
 ├── index.html                  # Interface utilisateur principale et modales
 ├── service-worker.js           # PWA : mise en cache et fonctionnement hors-ligne
 ├── manifest.json               # Configuration PWA pour installation mobile/bureau
-├── style.css                   # Point d'entrée CSS (imports globaux)
 ├── _config.yaml                # Configuration Jekyll (pour GitHub Pages)
 │
 ├── css/                        # Feuilles de style modulaires (Vanilla CSS)
 │   ├── README.md               # Documentation détaillée des styles et variables
 │   ├── variables.css           # Tokens de design et couleurs des zones FTP Z1 à Z6
 │   ├── base.css                # Reset CSS et typographie Inter
-│   ├── layout.css              # Structure globale et barre d'onglets
-│   ├── components.css          # Boutons, cartes, formulaires et console
-│   ├── dashboard.css           # Vue Dashboard complète avec grand graphique
-│   ├── compteur.css            # Mode Kiosk AMOLED à très haut contraste
-│   ├── ux-v3.css               # Sélecteur de profil "Qui pédale" et dialogues tactiles
+│   ├── app.css                 # Interface responsive et composants applicatifs
 │   ├── session-detail.css      # Fiche d'analyse détaillée et histogrammes de zones
-│   ├── email.css               # Modale d'envoi et statuts d'expédition e-mail
-│   └── responsive.css          # Adaptations smartphone portrait/paysage et tablette
+│   └── email.css               # Modale d'envoi et statuts d'expédition e-mail
 │
 ├── js/                         # Logique applicative (ES6+ natif)
 │   ├── README.md               # Documentation approfondie de l'architecture JS
@@ -135,6 +129,7 @@ Le code est organisé sans framework pour garantir une transparence totale, une 
 │   ├── profiles.js             # Gestionnaire multi-profils et sélecteur Kiosk
 │   ├── bluetooth.js            # API Web Bluetooth, décodage GATT et mode démo
 │   ├── session.js              # Chronomètre, intégration de l'effort et Wake Lock
+│   ├── ui-redesign.js          # Frise, feedback de cible et bilan de séance
 │   ├── workout.js              # Moteur des entraînements par intervalles
 │   ├── training-library.js     # Bibliothèque déterministe de 19 séances
 │   ├── ftp-estimator.js        # Estimation FTP prudente et documentée

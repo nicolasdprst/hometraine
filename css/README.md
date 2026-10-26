@@ -1,6 +1,6 @@
 # Module CSS (css/)
 
-Ce dossier rassemble l'ensemble des feuilles de style de CycloDash, modularisées par responsabilité. L'interface repose sur une esthétique moderne en thème sombre (optimisée pour les écrans AMOLED des tablettes et smartphones montés sur guidon) avec effets de transparence et de relief (glassmorphism), sans aucun framework CSS externe ni surcharge superflue.
+Ce dossier rassemble les feuilles de style de CycloDash. L'interface repose sur un thème sombre neutre, des surfaces opaques et une seule couleur d'accent, sans framework CSS.
 
 ---
 
@@ -10,14 +10,9 @@ Ce dossier rassemble l'ensemble des feuilles de style de CycloDash, modularisée
 | :--- | :--- |
 | **`variables.css`** | Variables CSS globales : palette de couleurs sombres, bordures subtiles, rayons de courbure et couleurs des 6 zones FTP (Z1 à Z6). |
 | **`base.css`** | Reset CSS minimal, intégration de la police Inter, lissage des polices et règles génériques pour l'accessibilité. |
-| **`layout.css`** | Squelette structurel de l'application, barre de navigation principale (onglets avec icônes), bandeau d'identité du profil actif et conteneurs principaux. |
-| **`components.css`** | Composants d'interface réutilisables : boutons interactifs, cartes, champs de formulaire, interrupteurs basculeurs (switchers), toasts de notification et boîte de statut Bluetooth. |
-| **`dashboard.css`** | Disposition du grand tableau de bord d'analyse en direct : tuiles de métriques (watts, vitesse, chrono, kJ), grand canevas Chart.js et progression de l'entraînement par intervalles. |
-| **`compteur.css`** | **Mode Kiosk AMOLED** : interface ultra-contrastée à fond noir profond (`#000000`), typographie géante lisible à distance sur guidon, indicateur compact de statut Bluetooth et badge Screen Wake Lock. |
-| **`ux-v3.css`** | Interface du sélecteur de profils plein écran (*"Qui pédale aujourd'hui ?"*), cartes de profils interactives avec pastilles colorées, dialogue modal de confirmation de suppression et badge de profil actif. |
+| **`app.css`** | Coque responsive, navigation, Compteur, séances, historique, réglages, modales et bilan de séance. |
 | **`session-detail.css`** | Vue d'analyse détaillée de séance (Batch 4) : histogramme horizontal de répartition du temps dans les zones FTP, badges de records de puissance (5s, 1m, 5min, 20min), bascule de vue graphique et indicateur de chargement. |
 | **`email.css`** | Boîte de dialogue d'envoi TCX par e-mail : aperçu de la pièce jointe, champ de saisie d'adresse, indicateurs de progression (`pending`, `sending`, `sent`, `failed`) et case à cocher d'envoi automatique. |
-| **`responsive.css`** | Règles d'adaptation multi-écrans et points de rupture (*media queries*) pour smartphones (portrait/paysage) et tablettes de garage. |
 
 ---
 

@@ -119,11 +119,6 @@ async function saveSessionToHistory() {
         enqueueSync(sessionId);
     }
 
-    // 5. Proposer le téléchargement direct du fichier Strava TCX
-    if (confirm("Séance enregistrée ! Voulez-vous télécharger le fichier Strava (.tcx) maintenant ?")) {
-        downloadTCX(sessionId, sessionSummary, detailedData);
-    }
-
     renderHistory();
     if (window.CycloTrainingUI) window.CycloTrainingUI.showPostSession(sessionSummary);
 }
@@ -382,7 +377,7 @@ async function renderHistory() {
         empty.style.cssText = 'padding:2.5rem 1rem;text-align:center;color:var(--text-secondary)';
         const title = document.createElement('div');
         title.style.cssText = 'font-weight:600;font-size:1.05rem;color:var(--text-primary)';
-        title.textContent = `🚴 Aucune activité pour ${activeProfile ? activeProfile.display_name : 'ce profil'}`;
+        title.textContent = `Aucune activité pour ${activeProfile ? activeProfile.display_name : 'ce profil'}`;
         const help = document.createElement('p');
         help.textContent = 'Démarrez une séance sur le Compteur pour enregistrer vos premiers tours de roue !';
         empty.append(title, help);
@@ -391,81 +386,60 @@ async function renderHistory() {
     }
 
     list.innerHTML = '';
+    let currentMonthKey = '';
+    let monthContainer = null;
     profileSessions.forEach(s => {
         const dateObj = new Date(s.started_at || s.date);
-        const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' }) + 
-                        ' à ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const monthKey = `${dateObj.getFullYear()}-${dateObj.getMonth()}`;
+        if (monthKey !== currentMonthKey) {
+            currentMonthKey = monthKey;
+            const section = document.createElement('section');
+            section.className = 'history-month';
+            const heading = document.createElement('h2');
+            heading.className = 'history-month-title';
+            heading.textContent = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            monthContainer = document.createElement('div');
+            monthContainer.className = 'history-month-items';
+            section.append(heading, monthContainer);
+            list.appendChild(section);
+        }
+        const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }) +
+            ' · ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
         const item = document.createElement('div');
-        item.className = 'list-item history-item-card';
-        item.style.marginBottom = '0.75rem';
+        item.className = 'history-item-card';
 
         const content = document.createElement('div');
-        content.style.cssText = 'flex:1;min-width:0';
-        const title = document.createElement('div');
-        title.style.cssText = 'font-weight:700;color:var(--text-primary);font-size:0.95rem';
+        content.className = 'history-item-content';
+        const title = document.createElement('h3');
         title.textContent = s.workout_name || 'Roule Libre';
         const sync = document.createElement('span');
         sync.className = `history-sync-badge ${s.synced ? 'synced' : 'local'}`;
-        sync.textContent = s.synced ? '☁️ Synchronisée' : '⏳ Locale';
+        sync.textContent = s.synced ? 'Synchronisée' : 'Locale';
         title.appendChild(sync);
         const date = document.createElement('div');
-        date.style.cssText = 'font-size:0.78rem;color:var(--text-secondary);margin:0.25rem 0 0.4rem';
-        date.textContent = `📅 ${dateStr}`;
+        date.className = 'history-date';
+        date.textContent = dateStr;
         const metrics = document.createElement('div');
         metrics.className = 'history-metrics-row';
-        metrics.style.cssText = 'display:flex;flex-wrap:wrap;gap:0.75rem;font-size:0.85rem';
         const values = [
-            `⏱ ${formatTime(s.duration_seconds || s.duration || 0)}`,
-            `📏 ${((s.distance_meters || s.distance || 0) / 1000).toFixed(2)} km`,
-            `⚡ ${s.avg_power_watts || s.avgWatts || 0} W moy`,
-            `🚴 ${s.avg_speed_kmh || s.avgSpeed || '0.0'} km/h`
+            formatTime(s.duration_seconds || s.duration || 0),
+            `${((s.distance_meters || s.distance || 0) / 1000).toFixed(2)} km`,
+            `${s.avg_power_watts || s.avgWatts || 0} W moy.`
         ];
-        if (s.total_work_kj) values.push(`🔥 ${s.total_work_kj} kJ`);
         values.forEach(value => { const span = document.createElement('span'); span.textContent = value; metrics.appendChild(span); });
         const actions = document.createElement('div');
         actions.className = 'history-item-actions';
         const analyzeBtn = document.createElement('button');
-        analyzeBtn.className = 'btn btn-sm btn-primary';
-        analyzeBtn.textContent = "Voir l'analyse";
+        analyzeBtn.className = 'btn btn-secondary';
+        analyzeBtn.textContent = 'Détails';
         analyzeBtn.onclick = (e) => { e.stopPropagation(); if (window.SessionDetail) SessionDetail.open(s); };
-        const button = document.createElement('button');
-        button.className = 'btn btn-sm btn-secondary';
-        button.textContent = 'TCX';
-        button.onclick = (e) => { e.stopPropagation(); exportTCXById(s.id); };
-        const emailButton = document.createElement('button');
-        emailButton.className = 'btn btn-sm btn-secondary email-action-btn';
-        emailButton.textContent = 'E-mail';
-        emailButton.onclick = (e) => { e.stopPropagation(); if (window.CycloEmail) window.CycloEmail.openForSession(s); };
-        const menu = document.createElement('details');
-        menu.className = 'history-menu';
-        const menuButton = document.createElement('summary');
-        menuButton.className = 'btn btn-sm btn-secondary history-menu-button';
-        if (menuButton.setAttribute) menuButton.setAttribute('aria-label', `Actions pour la séance du ${dateStr}`);
-        menuButton.textContent = '⋯';
-        const menuPanel = document.createElement('div');
-        menuPanel.className = 'history-menu-panel';
-        const deleteButton = document.createElement('button');
-        deleteButton.className = 'btn btn-sm btn-danger';
-        deleteButton.textContent = 'Supprimer la séance';
-        deleteButton.onclick = () => deleteSessionById(s.id).catch(error => {
-            console.error(error);
-            if (window.showAppToast) window.showAppToast(error.message, 'error');
-        });
-        menuPanel.append(deleteButton);
-        menu.append(menuButton, menuPanel);
-        actions.append(analyzeBtn, button, emailButton, menu);
-        if (s.email_status) {
-            const emailBadge = document.createElement('span');
-            emailBadge.className = `email-status-badge ${s.email_status}`;
-            emailBadge.textContent = window.CycloEmail ? window.CycloEmail.statusText(s.email_status) : s.email_status;
-            content.appendChild(emailBadge);
-        }
+        actions.append(analyzeBtn);
         content.style.cursor = 'pointer';
         content.onclick = () => { if (window.SessionDetail) SessionDetail.open(s); };
         content.append(title, date, metrics);
         item.append(content, actions);
-        list.appendChild(item);
+        monthContainer.appendChild(item);
     });
 }
 

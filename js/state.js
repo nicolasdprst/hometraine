@@ -53,6 +53,8 @@ const state = {
     isConnecting: false,
     gattConnected: false,
     isRecording: false,
+    isPaused: false,
+    pauseStartedMonotonic: null,
     sessionStatus: 'idle',
     isDemoMode: false,
     demoInterval: null,
@@ -90,7 +92,10 @@ const state = {
     lastTickMonotonic: null,
     lastTickWallTime: null,
     wakeLockSupported: ('wakeLock' in navigator),
-    wakeLockActive: false
+    wakeLockActive: false,
+    displaySettings: {
+        zoneFeedbackEnabled: typeof localStorage === 'undefined' || localStorage.getItem('zoneFeedbackEnabled') !== 'false'
+    }
 };
 
 window.config = config;
