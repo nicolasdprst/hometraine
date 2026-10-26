@@ -73,7 +73,8 @@ const state = {
     currentSpeed: 0,
     maxWatts: 0,
     maxSpeed: 0,
-    ftp: 200,
+    // null est une valeur valide : une FTP inconnue ne doit jamais devenir 200 W implicitement.
+    ftp: null,
     activeWorkout: null,
     currentWorkoutStepIndex: 0,
     workoutStepTimeElapsed: 0,

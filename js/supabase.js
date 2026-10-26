@@ -219,7 +219,16 @@ const supabaseClient = {
             id: profile.id || createCycloDashId(),
             owner_id: user.id,
             display_name: profile.display_name.trim(),
-            ftp_watts: parseInt(profile.ftp_watts) || 200,
+            ftp_watts: parseInt(profile.ftp_watts) > 0 ? parseInt(profile.ftp_watts) : null,
+            ftp_origin: profile.ftp_origin || 'unknown',
+            ftp_confidence: profile.ftp_confidence || 'unknown',
+            ftp_last_evaluated_at: profile.ftp_last_evaluated_at || null,
+            ftp_history: profile.ftp_history || [],
+            ftp_pending_estimate: profile.ftp_pending_estimate || null,
+            training_goal: profile.training_goal || 'general_progress',
+            sessions_per_week: profile.sessions_per_week || null,
+            session_duration_minutes: profile.session_duration_minutes || null,
+            intensity_preference: profile.intensity_preference || 'balanced',
             avatar_color: profile.avatar_color || '#3b82f6',
             is_archived: !!profile.is_archived,
             email_address: profile.email_address || null,
@@ -237,7 +246,7 @@ const supabaseClient = {
 
     async updateProfile(id, updates) {
         if (!this.isAuthenticated()) throw new Error("Non authentifié");
-        const allowed = ['display_name', 'ftp_watts', 'avatar_color', 'is_archived', 'email_address', 'email_auto_send', 'email_format', 'updated_at'];
+        const allowed = ['display_name', 'ftp_watts', 'avatar_color', 'is_archived', 'email_address', 'email_auto_send', 'email_format', 'updated_at', 'ftp_origin', 'ftp_confidence', 'ftp_last_evaluated_at', 'ftp_history', 'ftp_pending_estimate', 'training_goal', 'sessions_per_week', 'session_duration_minutes', 'intensity_preference'];
         const payload = {};
         allowed.forEach(key => { if (updates[key] !== undefined) payload[key] = updates[key]; });
         const res = await this.restRequest(`profiles?id=eq.${id}`, {
@@ -283,8 +292,13 @@ const supabaseClient = {
             max_speed_kmh: sessionSummary.max_speed_kmh,
             total_work_kj: sessionSummary.total_work_kj,
             energy_kcal: sessionSummary.energy_kcal,
+            active_duration_seconds: sessionSummary.active_duration_seconds || null,
+            reliable_data_seconds: sessionSummary.reliable_data_seconds || null,
+            workout_id: sessionSummary.workout_id || null,
             workout_name: sessionSummary.workout_name || 'Roule Libre',
             ftp_at_session_watts: sessionSummary.ftp_at_session_watts || null,
+            feedback_rating: sessionSummary.feedback_rating || null,
+            feedback_at: sessionSummary.feedback_at || null,
             email_auto_requested: !!sessionSummary.email_auto_requested,
             email_recipient_snapshot: sessionSummary.email_recipient_snapshot || null
         };

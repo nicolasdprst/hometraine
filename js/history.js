@@ -55,6 +55,7 @@ async function saveSessionToHistory() {
         max_speed_kmh: maxSpeed,
         total_work_kj: totalWorkKJ,
         energy_kcal: energyKcal,
+        workout_id: (state.activeWorkout && state.activeWorkout.id) ? state.activeWorkout.id : null,
         workout_name: (state.activeWorkout && state.activeWorkout.name) ? state.activeWorkout.name : 'Roule Libre',
         ftp_at_session_watts: state.ftp || null,
         email_auto_requested: automaticEmailRequested,
@@ -124,6 +125,7 @@ async function saveSessionToHistory() {
     }
 
     renderHistory();
+    if (window.CycloTrainingUI) window.CycloTrainingUI.showPostSession(sessionSummary);
 }
 
 // Récupérer les séances depuis le stockage local
@@ -762,3 +764,4 @@ window.processDeletionQueue = processDeletionQueue;
 window.deleteSessionById = deleteSessionById;
 window.getStoredSessions = getStoredSessions;
 window.saveStoredSessions = saveStoredSessions;
+window.enqueueSync = enqueueSync;

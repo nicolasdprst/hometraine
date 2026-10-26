@@ -20,6 +20,7 @@
     <link rel="stylesheet" href="css/ux-v3.css">
     <link rel="stylesheet" href="css/session-detail.css">
     <link rel="stylesheet" href="css/email.css">
+    <link rel="stylesheet" href="css/training.css">
 </head>
 <body>
 
@@ -50,8 +51,8 @@
                     <input type="text" id="profileFormNameInput" class="form-control" placeholder="ex: Nicolas" style="margin-top: 0.25rem;">
                 </div>
                 <div style="margin-bottom: 0.75rem;">
-                    <label style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">FTP en Watts :</label>
-                    <input type="number" id="profileFormFtpInput" class="form-control" placeholder="200" value="200" style="margin-top: 0.25rem;">
+                    <label style="font-size: 0.78rem; color: var(--text-secondary); text-transform: uppercase;">FTP en Watts (facultative) :</label>
+                    <input type="number" id="profileFormFtpInput" class="form-control" placeholder="Laisser vide si inconnue" value="" style="margin-top: 0.25rem;">
                 </div>
                 <div class="profile-email-fields">
                     <label for="profileFormEmailInput">Adresse e-mail du cycliste <span>(facultative)</span></label>
@@ -287,39 +288,23 @@
         <div id="workouts" class="tab-content">
             <header>
                 <h1>Entraînements</h1>
-                <p class="status">Choisissez une séance structurée</p>
+                <p class="status">Des séances adaptées, disponibles même hors ligne</p>
             </header>
-            <div class="glass">
-                <div class="list-item">
-                    <div>
-                        <h3>Roule Libre</h3>
-                        <div class="history-meta">Aucune cible de puissance</div>
-                    </div>
-                    <button class="btn btn-primary" onclick="selectWorkout(null)">Sélectionner</button>
+            <section class="training-section">
+                <h2>Recommandés pour vous</h2>
+                <div id="recommendedWorkouts" class="training-grid"><p class="training-empty">Sélectionnez un profil pour obtenir des recommandations.</p></div>
+                <div class="gemini-advice"><button class="btn btn-secondary btn-sm" onclick="CycloTrainingUI.requestGeminiAdvice()">Conseil personnalisé Gemini (facultatif)</button><p id="geminiAdviceText" class="history-meta"></p></div>
+            </section>
+            <section class="training-section">
+                <div class="training-section-heading"><h2>Tous les entraînements</h2><button class="btn btn-secondary btn-sm" onclick="selectWorkout(null)">Roule libre</button></div>
+                <div class="workout-filters glass">
+                    <select id="workoutCategoryFilter" class="form-control" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Tous les objectifs</option><option>Découverte</option><option>Endurance</option><option>Tempo / Sweet Spot</option><option>Seuil</option><option>VO2max</option><option>Récupération</option><option>Évaluation</option></select>
+                    <select id="workoutDurationFilter" class="form-control" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Toutes les durées</option><option value="30">30 min maximum</option><option value="45">45 min maximum</option><option value="60">60 min maximum</option><option value="90">90 min maximum</option></select>
+                    <select id="workoutDifficultyFilter" class="form-control" onchange="CycloTrainingUI.filterWorkouts()"><option value="">Toutes difficultés</option><option value="2">Facile (≤ 2)</option><option value="3">Modérée (≤ 3)</option><option value="5">Toutes (≤ 5)</option></select>
                 </div>
-                <div class="list-item">
-                    <div>
-                        <h3>Échauffement & Endurance (45 min)</h3>
-                        <div class="history-meta">10m Z1, 30m Z2, 5m Z1</div>
-                    </div>
-                    <button class="btn btn-primary" onclick="selectWorkout('endurance45')">Sélectionner</button>
-                </div>
-                <div class="list-item">
-                    <div>
-                        <h3>Intervalles 30/30 (30 min)</h3>
-                        <div class="history-meta">10m Z2, 10x(30s Z5 / 30s Z1), 10m Z1</div>
-                    </div>
-                    <button class="btn btn-primary" onclick="selectWorkout('intervals3030')">Sélectionner</button>
-                </div>
-                <div class="list-item">
-                    <div>
-                        <h3>Sweet Spot (40 min)</h3>
-                        <div class="history-meta">10m Z2, 2x(10m Z3/Z4, 5m Z1)</div>
-                    </div>
-                    <button class="btn btn-primary" onclick="selectWorkout('sweetspot')">Sélectionner</button>
-                </div>
+                <div id="allWorkouts" class="training-grid"></div>
+            </section>
             </div>
-        </div>
 
         <!-- HISTORY TAB (INDIVIDUEL PAR PROFIL) -->
         <div id="history" class="tab-content">
@@ -392,11 +377,29 @@
                     
                     <div style="margin-top: 1rem;">
                         <label for="ftpInput">FTP personnelle (Watts) :</label>
-                        <input type="number" id="ftpInput" class="form-control" placeholder="ex: 200" value="">
+                        <input type="number" id="ftpInput" class="form-control" placeholder="Laisser vide si inconnue" value="">
                         <p style="font-size: 0.8rem; color: var(--text-secondary); margin-top: 0.4rem;">
                             Sert à calculer vos zones d'entraînement personnelles.
                         </p>
                     </div>
+
+                    <section class="smart-settings-card">
+                        <h3>FTP intelligente</h3>
+                        <div id="ftpSmartStatus" class="ftp-smart-status">Sélectionnez un profil.</div>
+                        <div class="smart-actions"><button id="analyzeFtpBtn" class="btn btn-primary" onclick="CycloTrainingUI.analyzeFtp()">Analyser mes performances</button><button class="btn btn-secondary" onclick="selectWorkout('ftp-test-20'); switchTab('compteur')">Effectuer un test FTP</button></div>
+                        <details><summary>Historique des évolutions FTP</summary><ul id="ftpHistoryList" class="ftp-history-list"></ul></details>
+                    </section>
+
+                    <section class="smart-settings-card">
+                        <h3>Objectifs et préférences</h3>
+                        <div class="preferences-grid">
+                            <label>Objectif<select id="trainingGoalInput" class="form-control"><option value="restart">Reprise ou remise en forme</option><option value="endurance">Amélioration de l’endurance</option><option value="general_progress">Progression générale</option><option value="ftp">Amélioration de la FTP</option><option value="performance">Performance / intensif</option></select></label>
+                            <label>Séances par semaine<input id="sessionsPerWeekInput" class="form-control" type="number" min="1" max="7" placeholder="Facultatif"></label>
+                            <label>Durée habituelle<input id="sessionDurationInput" class="form-control" type="number" min="15" max="180" step="5" placeholder="Minutes"></label>
+                            <label>Préférence d’intensité<select id="intensityPreferenceInput" class="form-control"><option value="gentle">Plutôt douce</option><option value="balanced">Équilibrée</option><option value="intense">Plutôt intense</option></select></label>
+                        </div>
+                        <button class="btn btn-success" onclick="CycloTrainingUI.savePreferences()">Enregistrer mes préférences</button>
+                    </section>
 
                     <div style="margin-top: 1.25rem; display: flex; gap: 0.5rem;">
                         <button class="btn btn-success" onclick="saveSettings()">Enregistrer ma FTP</button>
@@ -519,6 +522,12 @@
 
     <div id="appToast" class="app-toast" role="status" aria-live="polite" style="display:none;"></div>
 
+    <div id="workoutDetailModal" class="confirm-overlay" role="dialog" aria-modal="true" style="display:none;"><div class="confirm-dialog training-dialog"><h2 id="workoutDetailTitle"></h2><div id="workoutDetailContent"></div><div class="confirm-actions"><button class="btn btn-primary" onclick="document.getElementById('workoutDetailModal').style.display='none'">Fermer</button></div></div></div>
+
+    <div id="ftpProposalModal" class="confirm-overlay" role="dialog" aria-modal="true" style="display:none;"><div class="confirm-dialog training-dialog"><h2>Proposition de FTP</h2><p id="ftpProposalText"></p><p id="ftpProposalExplanation" class="history-meta"></p><div class="confirm-actions ftp-actions"><button class="btn btn-success" onclick="CycloTrainingUI.decideFtp('accept')">Accepter</button><button class="btn btn-secondary" onclick="CycloTrainingUI.decideFtp('defer')">Plus tard</button><button class="btn btn-danger" onclick="CycloTrainingUI.decideFtp('reject')">Refuser</button></div></div></div>
+
+    <div id="postSessionModal" class="confirm-overlay" role="dialog" aria-modal="true" style="display:none;"><div class="confirm-dialog training-dialog"><h2>Séance terminée</h2><p id="postSessionSummary"></p><p id="postSessionNext" class="recommendation-reason"></p><h3>Comment avez-vous trouvé cette séance ?</h3><div class="feedback-grid"><button onclick="CycloTrainingUI.submitFeedback('very_easy')">Très facile</button><button onclick="CycloTrainingUI.submitFeedback('easy')">Facile</button><button onclick="CycloTrainingUI.submitFeedback('appropriate')">Adaptée</button><button onclick="CycloTrainingUI.submitFeedback('difficult')">Difficile</button><button onclick="CycloTrainingUI.submitFeedback('too_difficult')">Trop difficile</button></div><button class="btn btn-secondary" onclick="CycloTrainingUI.skipFeedback()">Ignorer</button></div></div>
+
     <div id="emailSessionModal" class="confirm-overlay email-modal" role="dialog" aria-modal="true" aria-labelledby="emailSessionTitle" style="display:none;">
         <div class="confirm-dialog">
             <div class="email-modal-icon" aria-hidden="true">✉️</div>
@@ -551,8 +560,14 @@
     <script src="js/supabase.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/profiles.js"></script>
+    <script src="js/training-library.js"></script>
     <script src="js/workout.js"></script>
     <script src="js/analytics.js"></script>
+    <script src="js/ftp-estimator.js"></script>
+    <script src="js/training-recommendations.js"></script>
+    <script src="js/training-feedback.js"></script>
+    <script src="js/gemini.js"></script>
+    <script src="js/training-ui.js"></script>
     <script src="js/history.js"></script>
     <script src="js/email.js"></script>
     <script src="js/session-detail.js"></script>
