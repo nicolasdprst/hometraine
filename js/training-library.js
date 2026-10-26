@@ -6,6 +6,11 @@
         type, duration: Math.round(minutes * 60), desc,
         target_pct: targetPct || ({ Z1: 0.50, Z2: 0.68, Z3: 0.84, Z4: 0.98, Z5: 1.12, Z6: 1.30 }[type] || null)
     });
+    const testStep = (type, minutes, desc, targetPct, rpe, effortCue) => ({
+        ...step(type, minutes, desc, targetPct),
+        rpe,
+        effort_cue: effortCue
+    });
     const repeat = (count, entries) => Array(count).fill(null).flatMap(() => entries.map(item => ({ ...item })));
     const workout = (id, name, category, objective, difficulty, description, steps, extra = {}) => ({
         id, name, category, objective, difficulty, description, steps,
@@ -32,7 +37,14 @@
         workout('vo2-5x3', 'Intervalles 5 × 3 minutes', 'VO2max', 'Augmenter la tolérance aux efforts intenses', 5, 'Une séance avancée à réserver aux semaines bien assimilées.', [step('Z2', 12, 'Échauffement'), ...repeat(5, [step('Z5', 3, 'VO2max', 1.12), step('Z1', 3, 'Récupération')]), step('Z1', 8, 'Retour au calme')]),
         workout('recovery20', 'Récupération active 20 minutes', 'Récupération', 'Faire tourner les jambes sans charge', 1, 'Très facile : réduisez encore l’intensité si nécessaire.', [step('Z1', 20, 'Pédalage très souple', 0.48)], { requires_ftp: false }),
         workout('recovery30', 'Récupération active 30 minutes', 'Récupération', 'Favoriser une reprise douce', 1, 'Une demi-heure facile, sans objectif de performance.', [step('Z1', 5, 'Mise en route', 0.45), step('Z1', 20, 'Récupération active', 0.50), step('Z1', 5, 'Retour au calme', 0.45)], { requires_ftp: false }),
-        workout('ftp-test-20', 'Test FTP guidé', 'Évaluation', 'Estimer la FTP à partir d’un effort de 20 minutes', 5, 'Après un échauffement progressif, tenez le meilleur effort régulier possible pendant 20 minutes. Le résultat reste une estimation, pas une mesure physiologique exacte.', [step('Z1', 8, 'Échauffement facile', 0.50), step('Z2', 5, 'Montée progressive', 0.70), step('Z4', 3, 'Préparation soutenue', 0.95), step('Z1', 4, 'Récupération'), step('Z4', 20, 'Effort test régulier', 1.00), step('Z1', 10, 'Retour au calme')], { is_ftp_test: true, requires_ftp: false }),
+        workout('ftp-test-20', 'Test FTP guidé', 'Évaluation', 'Estimer la FTP à partir d’un effort de 20 minutes', 5, 'Le test est guidé uniquement au ressenti : aucune cible de watts n’est utilisée. Pendant les 20 minutes, tenez le meilleur effort régulier que vous pouvez soutenir jusqu’au bout.', [
+            testStep('Z1', 8, 'Échauffement facile', 0.50, '2–3/10', 'Très facile, respiration calme'),
+            testStep('Z2', 5, 'Montée progressive', 0.70, '4–6/10', 'Augmentez progressivement sans vous fatiguer'),
+            testStep('Z4', 3, 'Préparation soutenue', 0.95, '7/10', 'Soutenu mais encore maîtrisé'),
+            testStep('Z1', 4, 'Récupération', 0.50, '2/10', 'Pédalez très souplement'),
+            testStep('Z4', 20, 'Effort test régulier', 1.00, '9/10', 'Meilleur effort régulier soutenable 20 min ; partez prudemment'),
+            testStep('Z1', 10, 'Retour au calme', 0.50, '1–2/10', 'Relâchez progressivement l’effort')
+        ], { is_ftp_test: true, requires_ftp: false }),
         workout('cadence30', 'Endurance & vélocité 30 minutes', 'Endurance', 'Améliorer la fluidité du pédalage', 2, 'Une endurance légère ponctuée de séquences de vélocité, sans hausse brutale de puissance.', [step('Z1', 5, 'Échauffement'), ...repeat(4, [step('Z2', 4, 'Endurance souple'), step('Z2', 1, 'Vélocité contrôlée', 0.65)]), step('Z1', 5, 'Retour au calme')])
     ];
 

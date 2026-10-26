@@ -24,6 +24,9 @@ ctx.CycloTrainingLibrary.list.forEach(w => {
   assert.strictEqual(w.duration_seconds, w.steps.reduce((n, step) => n + step.duration, 0));
   w.steps.forEach(step => assert(step.target_pct > 0 && step.target_pct < 2));
 });
+const ftpTest = ctx.CycloTrainingLibrary.get('ftp-test-20');
+assert(ftpTest.steps.every(step => step.rpe && step.effort_cue), 'le test FTP est guidé au ressenti à chaque étape');
+assert.match(ftpTest.description, /aucune cible de watts/i);
 
 const medium = ctx.CycloFtpEstimator.estimate([session('test', 230, 280, 1, { workout_id: 'ftp-test-20' })]);
 assert.strictEqual(medium.ftp_watts, 219);

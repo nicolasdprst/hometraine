@@ -188,11 +188,15 @@
             <p>${escapeHtml(w.description)}</p>
             <p><strong>Objectif :</strong> ${escapeHtml(w.objective)}</p>
             <p class="muted">${Math.round(w.duration_seconds / 60)} min · ${escapeHtml(w.category)} · Niveau ${w.difficulty}/5</p>
-            <ol>${w.steps.map(s => `<li>${escapeHtml(s.desc)} — ${root.formatTime(s.duration)} — ${state.ftp ? `${Math.round(state.ftp * s.target_pct)} W (${s.type})` : `${s.type}, au ressenti`}</li>`).join('')}</ol>
+            <ol>${w.steps.map(s => {
+                const guidance = w.is_ftp_test
+                    ? `${s.rpe ? `RPE ${s.rpe}` : 'Au ressenti'}${s.effort_cue ? ` · ${s.effort_cue}` : ''}`
+                    : (state.ftp ? `${Math.round(state.ftp * s.target_pct)} W (${s.type})` : `${s.type}, au ressenti`);
+                return `<li>${escapeHtml(s.desc)} — ${root.formatTime(s.duration)} — ${escapeHtml(guidance)}</li>`;
+            }).join('')}</ol>
             ${w.is_ftp_test ? '<p class="training-warning">Limite : 95 % de 20 minutes est une approximation influencée par le protocole, la motivation et la fatigue.</p>' : ''}
             <div class="button-row" style="margin-top:20px">
                 <button class="btn btn-primary btn-wide" onclick="selectWorkout('${w.id}'); document.getElementById('workoutDetailModal').style.display='none'; switchTab('compteur')">Choisir cette séance</button>
-                <button class="btn btn-secondary btn-wide" onclick="document.getElementById('workoutDetailModal').style.display='none'">Fermer</button>
             </div>
         `;
         modal.style.display = 'flex';
