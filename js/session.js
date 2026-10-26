@@ -72,13 +72,13 @@ function updateWakeLockUI() {
 
     if (settingsStatus) {
         if (!('wakeLock' in navigator)) {
-            settingsStatus.innerText = "Non supporté par ce navigateur (réglez la mise en veille dans les paramètres Android)";
+            settingsStatus.innerText = "Non supporté";
             settingsStatus.style.color = "var(--text-secondary)";
         } else if (state.wakeLockActive) {
-            settingsStatus.innerText = "Actif (maintien de l'écran pendant la séance)";
+            settingsStatus.innerText = "Actif";
             settingsStatus.style.color = "var(--success)";
         } else {
-            settingsStatus.innerText = "Disponible (s'active automatiquement au début d'une séance)";
+            settingsStatus.innerText = "Disponible";
             settingsStatus.style.color = "var(--accent)";
         }
     }

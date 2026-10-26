@@ -152,50 +152,194 @@
         </section>
 
         <section id="settings" class="tab-content" aria-labelledby="settingsTitle">
-            <header class="page-header"><div><span class="eyebrow">CycloDash</span><h1 id="settingsTitle">Réglages</h1></div></header>
+            <header class="page-header"><h1 id="settingsTitle">Réglages</h1></header>
             <div class="settings-stack">
                 <section class="settings-group">
-                    <h2>Profil</h2>
-                    <button class="settings-row" onclick="profilesManager.showPicker()"><span><strong>Profil actif</strong><small id="settingsCurrentProfile">Chargement…</small></span><span class="row-chevron">›</span></button>
-                    <div class="settings-form-row"><label for="ftpInput">FTP personnelle</label><div class="inline-input"><input type="number" id="ftpInput" class="form-control" placeholder="Inconnue"><span>W</span><button class="btn btn-secondary" onclick="saveSettings()">Enregistrer</button></div></div>
-                    <div id="settingsProfilesList" class="settings-profiles-list"></div>
-                    <button class="text-action settings-link" onclick="profilesManager.promptCreateProfile()">Ajouter un profil</button>
+                    <h2 class="settings-group-heading">Profil</h2>
+                    <button class="settings-row" onclick="profilesManager.showPicker()">
+                        <span>Cycliste actif</span>
+                        <span class="settings-val"><span id="settingsCurrentProfileVal">Chargement…</span><span class="settings-chevron">›</span></span>
+                    </button>
+                    <button class="settings-row" onclick="openSettingsModal('settingsFtpModal')">
+                        <span>FTP</span>
+                        <span class="settings-val"><span id="settingsCurrentFtpVal">220 W</span><span class="settings-chevron">›</span></span>
+                    </button>
+                    <button class="settings-row" onclick="openSettingsModal('settingsFtpSmartModal')">
+                        <span>FTP intelligente</span>
+                        <span class="settings-val"><span id="settingsCurrentFtpSmartVal">Analyser</span><span class="settings-chevron">›</span></span>
+                    </button>
+                    <button class="settings-row" onclick="openSettingsModal('settingsZonesModal')">
+                        <span>Zones estimées</span>
+                        <span class="settings-val"><span class="settings-chevron">›</span></span>
+                    </button>
+                    <button class="settings-row" onclick="openSettingsModal('settingsProfilesModal')">
+                        <span>Gérer les profils</span>
+                        <span class="settings-val"><span class="settings-chevron">›</span></span>
+                    </button>
                 </section>
 
                 <section class="settings-group">
-                    <h2>Entraînement</h2>
-                    <div class="settings-form-row"><strong>FTP intelligente</strong><div id="ftpSmartStatus" class="ftp-smart-status">Sélectionnez un profil.</div><div class="button-row"><button id="analyzeFtpBtn" class="btn btn-primary" onclick="CycloTrainingUI.analyzeFtp()">Analyser</button><button class="btn btn-secondary" onclick="selectWorkout('ftp-test-20'); switchTab('compteur')">Test FTP</button></div><details><summary>Historique FTP</summary><ul id="ftpHistoryList" class="ftp-history-list"></ul></details></div>
-                    <div class="preferences-grid">
-                        <label>Objectif<select id="trainingGoalInput" class="form-control"><option value="restart">Reprise</option><option value="endurance">Endurance</option><option value="general_progress">Progression générale</option><option value="ftp">Amélioration FTP</option><option value="performance">Performance</option></select></label>
-                        <label>Séances par semaine<input id="sessionsPerWeekInput" class="form-control" type="number" min="1" max="7" placeholder="Facultatif"></label>
-                        <label>Durée habituelle<input id="sessionDurationInput" class="form-control" type="number" min="15" max="180" step="5" placeholder="Minutes"></label>
-                        <label>Intensité<select id="intensityPreferenceInput" class="form-control"><option value="gentle">Plutôt douce</option><option value="balanced">Équilibrée</option><option value="intense">Plutôt intense</option></select></label>
+                    <h2 class="settings-group-heading">Entraînement</h2>
+                    <button class="settings-row" onclick="openSettingsModal('settingsTrainingModal')">
+                        <span>Objectif</span>
+                        <span class="settings-val"><span id="settingsCurrentGoalVal">Progression générale</span><span class="settings-chevron">›</span></span>
+                    </button>
+                    <button class="settings-row" onclick="openSettingsModal('settingsTrainingModal')">
+                        <span>Séances par semaine</span>
+                        <span class="settings-val"><span id="settingsCurrentSessionsVal">3</span><span class="settings-chevron">›</span></span>
+                    </button>
+                    <button class="settings-row" onclick="openSettingsModal('settingsTrainingModal')">
+                        <span>Durée habituelle</span>
+                        <span class="settings-val"><span id="settingsCurrentDurationVal">45 min</span><span class="settings-chevron">›</span></span>
+                    </button>
+                    <button class="settings-row" onclick="openSettingsModal('settingsTrainingModal')">
+                        <span>Intensité</span>
+                        <span class="settings-val"><span id="settingsCurrentIntensityVal">Équilibrée</span><span class="settings-chevron">›</span></span>
+                    </button>
+                </section>
+
+                <section class="settings-group">
+                    <h2 class="settings-group-heading">Synchronisation</h2>
+                    <button class="settings-row" onclick="openSettingsModal('settingsSyncModal')">
+                        <span>Compte cloud</span>
+                        <span class="settings-val"><span id="settingsCurrentCloudVal">Non connecté</span><span class="settings-chevron">›</span></span>
+                    </button>
+                </section>
+
+                <section class="settings-group">
+                    <h2 class="settings-group-heading">Affichage</h2>
+                    <div class="settings-row">
+                        <span>Écran toujours allumé</span>
+                        <span class="settings-val"><span id="wakeLockSettingStatus">Vérification…</span></span>
                     </div>
-                    <button class="btn btn-primary" onclick="CycloTrainingUI.savePreferences()">Enregistrer les préférences</button>
-                    <div id="zonesDisplay" class="zones-list" style="display:none"><h3>Zones estimées</h3><span>Z1 <b id="z1Val"></b></span><span>Z2 <b id="z2Val"></b></span><span>Z3 <b id="z3Val"></b></span><span>Z4 <b id="z4Val"></b></span><span>Z5 <b id="z5Val"></b></span><span>Z6 <b id="z6Val"></b></span></div>
+                    <button class="settings-row" onclick="toggleFullscreen()">
+                        <span>Plein écran</span>
+                        <span class="settings-val"><span>Activer</span><span class="settings-chevron">›</span></span>
+                    </button>
+                    <label class="settings-row toggle-row" for="zoneFeedbackToggle">
+                        <span>Fond de couleur selon la zone</span>
+                        <span class="switch"><input type="checkbox" id="zoneFeedbackToggle" checked><span class="slider"></span></span>
+                    </label>
                 </section>
 
                 <section class="settings-group">
-                    <h2>Synchronisation</h2>
-                    <div class="settings-form-row"><strong>Compte Supabase</strong><p id="supabaseAccountStatus" class="muted">Vérification…</p>
-                        <div id="supabaseLoginForm" class="login-form"><input type="email" id="supabaseEmailInput" class="form-control" placeholder="E-mail"><input type="password" id="supabasePasswordInput" class="form-control" placeholder="Mot de passe"><div class="button-row"><button class="btn btn-primary" onclick="handleSupabaseLogin()">Se connecter</button><button class="btn btn-secondary" onclick="handleSupabaseSignup()">Créer un compte</button></div></div>
-                        <div id="supabaseLoggedInBox" style="display:none"><p>Connecté : <strong id="supabaseUserEmail"></strong></p><div class="button-row"><button class="btn btn-primary" onclick="processSyncQueue()">Synchroniser</button><button class="btn btn-danger" onclick="handleSupabaseLogout()">Déconnexion</button></div></div>
-                    </div>
-                </section>
-
-                <section class="settings-group">
-                    <h2>Affichage</h2>
-                    <label class="settings-row toggle-row" for="zoneFeedbackToggle"><span><strong>Retour visuel de cible</strong><small>Teinte discrète selon votre puissance</small></span><span class="switch"><input type="checkbox" id="zoneFeedbackToggle" checked><span class="slider"></span></span></label>
-                    <div class="settings-row"><span><strong>Maintien de l’écran</strong><small id="wakeLockSettingStatus">Vérification…</small></span></div>
-                    <button class="settings-row" onclick="toggleFullscreen()"><span><strong>Plein écran</strong><small>Masquer l’interface du navigateur</small></span><span class="row-chevron">›</span></button>
-                </section>
-
-                <section class="settings-group">
-                    <h2>Avancé</h2>
-                    <label class="settings-row toggle-row" for="devModeToggle"><span><strong>Mode développeur</strong><small>Active le home trainer de démonstration</small></span><span class="switch"><input type="checkbox" id="devModeToggle" onchange="toggleDevMode()"><span class="slider"></span></span></label>
+                    <h2 class="settings-group-heading">Avancé</h2>
+                    <label class="settings-row toggle-row" for="devModeToggle">
+                        <span>Mode développeur</span>
+                        <span class="switch"><input type="checkbox" id="devModeToggle" onchange="toggleDevMode()"><span class="slider"></span></span>
+                    </label>
                 </section>
             </div>
         </section>
+
+        <div id="settingsFtpModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsFtpTitle" style="display:none" onclick="if(event.target===this)closeSettingsModal('settingsFtpModal')">
+            <div class="modal-card">
+                <span class="modal-kicker">PROFIL</span>
+                <h2 id="settingsFtpTitle">FTP personnelle</h2>
+                <p class="muted">Votre seuil fonctionnel de puissance en watts.</p>
+                <label for="ftpInput">FTP en watts</label>
+                <div class="inline-input">
+                    <input type="number" id="ftpInput" class="form-control" placeholder="Inconnue">
+                    <span>W</span>
+                    <button class="btn btn-primary" onclick="saveSettings(); closeSettingsModal('settingsFtpModal')">Enregistrer</button>
+                </div>
+                <div style="margin-top:16px">
+                    <button class="btn btn-secondary btn-wide" onclick="closeSettingsModal('settingsFtpModal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settingsFtpSmartModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsFtpSmartTitle" style="display:none" onclick="if(event.target===this)closeSettingsModal('settingsFtpSmartModal')">
+            <div class="modal-card">
+                <span class="modal-kicker">PROFIL</span>
+                <h2 id="settingsFtpSmartTitle">FTP intelligente</h2>
+                <div id="ftpSmartStatus" class="ftp-smart-status">Sélectionnez un profil.</div>
+                <div class="button-row">
+                    <button id="analyzeFtpBtn" class="btn btn-primary" onclick="CycloTrainingUI.analyzeFtp()">Analyser</button>
+                    <button class="btn btn-secondary" onclick="selectWorkout('ftp-test-20'); closeSettingsModal('settingsFtpSmartModal'); switchTab('compteur')">Test FTP</button>
+                </div>
+                <details style="margin-top:16px">
+                    <summary>Historique FTP</summary>
+                    <ul id="ftpHistoryList" class="ftp-history-list"></ul>
+                </details>
+                <div style="margin-top:16px">
+                    <button class="btn btn-secondary btn-wide" onclick="closeSettingsModal('settingsFtpSmartModal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settingsZonesModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsZonesTitle" style="display:none" onclick="if(event.target===this)closeSettingsModal('settingsZonesModal')">
+            <div class="modal-card">
+                <span class="modal-kicker">PROFIL</span>
+                <h2 id="settingsZonesTitle">Zones estimées</h2>
+                <div id="zonesDisplay" class="zones-list">
+                    <span>Z1 <b id="z1Val"></b></span>
+                    <span>Z2 <b id="z2Val"></b></span>
+                    <span>Z3 <b id="z3Val"></b></span>
+                    <span>Z4 <b id="z4Val"></b></span>
+                    <span>Z5 <b id="z5Val"></b></span>
+                    <span>Z6 <b id="z6Val"></b></span>
+                </div>
+                <div style="margin-top:16px">
+                    <button class="btn btn-secondary btn-wide" onclick="closeSettingsModal('settingsZonesModal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settingsProfilesModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsProfilesTitle" style="display:none" onclick="if(event.target===this)closeSettingsModal('settingsProfilesModal')">
+            <div class="modal-card">
+                <span class="modal-kicker">PROFIL</span>
+                <h2 id="settingsProfilesTitle">Gérer les profils</h2>
+                <div id="settingsProfilesList" class="settings-profiles-list"></div>
+                <div class="button-row" style="margin-top:16px">
+                    <button class="btn btn-primary" onclick="profilesManager.promptCreateProfile()">Ajouter un profil</button>
+                    <button class="btn btn-secondary" onclick="closeSettingsModal('settingsProfilesModal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settingsTrainingModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsTrainingTitle" style="display:none" onclick="if(event.target===this)closeSettingsModal('settingsTrainingModal')">
+            <div class="modal-card">
+                <span class="modal-kicker">ENTRAÎNEMENT</span>
+                <h2 id="settingsTrainingTitle">Préférences d’entraînement</h2>
+                <div class="preferences-grid" style="padding:0;margin:14px 0">
+                    <label>Objectif<select id="trainingGoalInput" class="form-control"><option value="restart">Reprise</option><option value="endurance">Endurance</option><option value="general_progress">Progression générale</option><option value="ftp">Amélioration FTP</option><option value="performance">Performance</option></select></label>
+                    <label>Séances par semaine<input id="sessionsPerWeekInput" class="form-control" type="number" min="1" max="7" placeholder="Facultatif"></label>
+                    <label>Durée habituelle<input id="sessionDurationInput" class="form-control" type="number" min="15" max="180" step="5" placeholder="Minutes"></label>
+                    <label>Intensité<select id="intensityPreferenceInput" class="form-control"><option value="gentle">Plutôt douce</option><option value="balanced">Équilibrée</option><option value="intense">Plutôt intense</option></select></label>
+                </div>
+                <div class="button-row">
+                    <button class="btn btn-primary" onclick="CycloTrainingUI.savePreferences(); closeSettingsModal('settingsTrainingModal')">Enregistrer les préférences</button>
+                    <button class="btn btn-secondary" onclick="closeSettingsModal('settingsTrainingModal')">Fermer</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="settingsSyncModal" class="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="settingsSyncTitle" style="display:none" onclick="if(event.target===this)closeSettingsModal('settingsSyncModal')">
+            <div class="modal-card">
+                <span class="modal-kicker">SYNCHRONISATION</span>
+                <h2 id="settingsSyncTitle">Compte Supabase</h2>
+                <p id="supabaseAccountStatus" class="muted">Vérification…</p>
+                <div id="supabaseLoginForm" class="login-form">
+                    <input type="email" id="supabaseEmailInput" class="form-control" placeholder="E-mail">
+                    <input type="password" id="supabasePasswordInput" class="form-control" placeholder="Mot de passe">
+                    <div class="button-row">
+                        <button class="btn btn-primary" onclick="handleSupabaseLogin()">Se connecter</button>
+                        <button class="btn btn-secondary" onclick="handleSupabaseSignup()">Créer un compte</button>
+                    </div>
+                </div>
+                <div id="supabaseLoggedInBox" style="display:none">
+                    <p>Connecté : <strong id="supabaseUserEmail"></strong></p>
+                    <div class="button-row">
+                        <button class="btn btn-primary" onclick="processSyncQueue()">Synchroniser</button>
+                        <button class="btn btn-secondary danger-text" onclick="handleSupabaseLogout()">Déconnexion</button>
+                    </div>
+                </div>
+                <div style="margin-top:16px">
+                    <button class="btn btn-secondary btn-wide" onclick="closeSettingsModal('settingsSyncModal')">Fermer</button>
+                </div>
+            </div>
+        </div>
     </main>
 
     <nav class="bottom-nav" aria-label="Navigation principale">

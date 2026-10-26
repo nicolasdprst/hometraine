@@ -170,18 +170,14 @@ body.zone-low::before {
 .history-item-actions .btn { min-height: 38px; padding: 6px 9px; font-size: 10px; }
 .empty-state { padding: 34px 16px; color: var(--text-secondary); text-align: center; }
 
-.settings-stack { display: grid; gap: 22px; }
-.settings-group > h2 { margin: 0 0 7px 4px; color: var(--text-secondary); font-size: 11px; letter-spacing: .07em; text-transform: uppercase; }
-.settings-group { border-radius: var(--radius-card); }
-.settings-group > :not(h2) { background: var(--surface); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border); border-left: 1px solid var(--border); }
-.settings-group > :nth-child(2) { border-top: 1px solid var(--border); border-radius: var(--radius-card) var(--radius-card) 0 0; }
-.settings-group > :last-child { border-radius: 0 0 var(--radius-card) var(--radius-card); }
-.settings-group > :only-child, .settings-group > h2 + :last-child { border-radius: var(--radius-card); }
-.settings-row { display: flex; width: 100%; min-height: 58px; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 13px; color: var(--text-primary); background: var(--surface); border: 0; text-align: left; cursor: pointer; }
-.settings-row strong, .settings-row small { display: block; }
-.settings-row strong { font-size: 13px; }
-.settings-row small { margin-top: 2px; color: var(--text-secondary); font-size: 10px; }
-.row-chevron { color: var(--text-secondary); font-size: 25px; }
+.settings-stack { display: grid; gap: 20px; }
+.settings-group { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); overflow: hidden; }
+.settings-group-heading { margin: 0; padding: 14px 16px 8px; color: var(--text-secondary); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+.settings-row { display: flex; width: 100%; min-height: 52px; align-items: center; justify-content: space-between; gap: 12px; box-sizing: border-box; padding: 12px 16px; color: var(--text-primary); background: transparent; border: 0; border-top: 1px solid var(--border); text-align: left; cursor: pointer; font-family: inherit; font-size: 15px; transition: background .15s ease; }
+.settings-row:hover, .settings-row:active { background: rgba(255, 255, 255, .03); }
+.settings-row.toggle-row { cursor: default; }
+.settings-val { display: inline-flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 15px; text-align: right; }
+.settings-chevron { color: var(--text-secondary); font-size: 16px; margin-left: 2px; }
 .settings-form-row { padding: 13px; }
 .settings-form-row > label, .settings-form-row > strong { display: block; margin-bottom: 8px; font-size: 13px; }
 .inline-input { display: flex; align-items: center; gap: 8px; }
@@ -190,7 +186,16 @@ body.zone-low::before {
 .preferences-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 13px; }
 .preferences-grid label { min-width: 0; color: var(--text-secondary); font-size: 10px; }
 .preferences-grid .form-control { margin-top: 4px; }
-.settings-group > .btn, .settings-group > .settings-link { width: 100%; border-radius: 0; }
+details { margin-top: 16px; border: 1px solid var(--border); border-radius: var(--radius-sm); overflow: hidden; background: #111419; }
+summary { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; font-size: 13px; font-weight: 600; color: var(--text-primary); cursor: pointer; list-style: none; user-select: none; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "›"; font-size: 16px; color: var(--text-secondary); transition: transform .2s ease; }
+details[open] summary::after { transform: rotate(90deg); }
+details[open] summary { border-bottom: 1px solid var(--border); }
+.ftp-history-list { margin: 0; padding: 8px 14px; list-style: none; font-size: 12px; }
+.ftp-history-list li { padding: 6px 0; color: var(--text-secondary); border-bottom: 1px solid var(--border); }
+.ftp-history-list li:last-child { border-bottom: none; }
+.ftp-history-list li strong { color: var(--text-primary); }
 .settings-profiles-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; padding: 13px; }
 .profile-settings-row { display: grid; min-width: 0; gap: 9px; padding: 10px; background: #111419; border: 1px solid var(--border); border-radius: 9px; }
 .profile-settings-row.profile-archived { opacity: .6; }
