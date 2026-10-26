@@ -98,7 +98,7 @@
         const current = stepAt(root.state.activeWorkout, number(root.state.elapsedTime));
         const target = stepTarget(current && current.step, root.state.ftp);
         const power = rollingPower(5);
-        const enabled = localStorage.getItem('zoneFeedbackEnabled') !== 'false';
+        const enabled = root.state.displaySettings ? root.state.displaySettings.zoneFeedbackEnabled : localStorage.getItem('zoneFeedbackEnabled') !== 'false';
         targetState = enabled && root.state.isRecording && !root.state.isPaused ? classifyTarget(power, target, targetState) : 'neutral';
         document.body.classList.remove('zone-ok', 'zone-high', 'zone-low');
         if (targetState !== 'neutral') document.body.classList.add(`zone-${targetState}`);
@@ -202,9 +202,10 @@
         if (pause) pause.addEventListener('click', togglePause);
         const toggle = el('zoneFeedbackToggle');
         if (toggle) {
-            toggle.checked = localStorage.getItem('zoneFeedbackEnabled') !== 'false';
+            toggle.checked = root.state.displaySettings ? root.state.displaySettings.zoneFeedbackEnabled : localStorage.getItem('zoneFeedbackEnabled') !== 'false';
             toggle.addEventListener('change', () => {
                 localStorage.setItem('zoneFeedbackEnabled', toggle.checked ? 'true' : 'false');
+                if (root.state.displaySettings) root.state.displaySettings.zoneFeedbackEnabled = toggle.checked;
                 renderTargetFeedback();
             });
         }
