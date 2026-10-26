@@ -251,7 +251,7 @@ const profilesManager = {
         const historyTitle = document.getElementById('historyTitle');
         const settingsTitle = document.getElementById('settingsTitle');
         if (historyTitle) historyTitle.textContent = p ? `Historique de ${p.display_name}` : 'Historique';
-        if (settingsTitle) settingsTitle.textContent = p ? `Paramètres de ${p.display_name}` : 'Paramètres';
+        if (settingsTitle) settingsTitle.textContent = 'Réglages';
 
         const startLabel = p ? `▶ Démarrer — ${p.display_name}` : '▶ Sélectionner un profil';
         const startBtn = document.getElementById('startBtn');
@@ -264,6 +264,7 @@ const profilesManager = {
         if (settingsCurrentProfile) {
             settingsCurrentProfile.innerText = p ? `${p.display_name} · ${p.ftp_watts ? `FTP ${p.ftp_watts} W` : 'FTP inconnue'}` : 'Aucun profil sélectionné';
         }
+        if (window.updateSettingsSummaryUI) window.updateSettingsSummaryUI();
     },
 
     getInitials(name) {
@@ -522,7 +523,7 @@ const profilesManager = {
             addButton('Modifier', 'btn btn-secondary', () => this.showProfileForm(p.id));
             if (p.is_archived) addButton('Restaurer', 'btn btn-secondary', () => this.restoreProfile(p.id));
             else addButton('Archiver', 'btn btn-secondary', () => this.archiveProfile(p.id));
-            addButton('Supprimer', 'btn btn-danger', () => this.deleteProfile(p.id));
+            addButton('Supprimer', 'btn btn-secondary danger-text', () => this.deleteProfile(p.id));
             row.append(identity, actions);
             listEl.appendChild(row);
         });

@@ -1,5 +1,5 @@
-// Version: cyclodash-v25-ui-redesign
-const CACHE_NAME = 'cyclodash-v25-ui-redesign';
+// Version: cyclodash-v25-ui-redesign-v2
+const CACHE_NAME = 'cyclodash-v25-ui-redesign-v2';
 const ASSETS = [
   './index.html',
   './css/variables.css',

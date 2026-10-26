@@ -95,21 +95,54 @@
         history.innerHTML = entries.length ? entries.map(item => `<li><strong>${escapeHtml(item.watts)} W</strong> · ${escapeHtml(item.source)} · ${new Date(item.recorded_at).toLocaleDateString()}</li>`).join('') : '<li>Aucune évolution enregistrée.</li>';
     }
 
-    function workoutCard(item, reason) {
+    function miniProfileSvg(w, selected) {
+        const total = Math.max(1, w.duration_seconds);
+        let x = 0;
+        const rects = w.steps.map(step => {
+            const width = step.duration / total * 56;
+            const height = Math.max(4, Math.min(22, (step.target_pct || .5) / 1.35 * 22));
+            const y = 24 - height;
+            const r = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, width - 0.8).toFixed(1)}" height="${height.toFixed(1)}" rx="1.5" fill="${selected ? '#7AA2F7' : '#4A5366'}"></rect>`;
+            x += width;
+            return r;
+        }).join('');
+        return `<svg aria-hidden="true" width="56" height="24" viewBox="0 0 56 24" style="flex:0 0 56px">${rects}</svg>`;
+    }
+
+    function compactWorkoutRow(w, isRecommended = false) {
+        const minutes = Math.round(w.duration_seconds / 60);
+        const selected = root.state && root.state.activeWorkout && root.state.activeWorkout.id === w.id;
+        const star = isRecommended ? '<span class="star-badge" aria-label="Recommandée">★ </span>' : '';
+        return `<button class="workout-compact-row${selected ? ' selected' : ''}" role="button" data-category="${escapeHtml(w.category)}" data-duration="${minutes}" data-difficulty="${w.difficulty}" onclick="CycloTrainingUI.showWorkout('${w.id}')">
+            <div class="workout-row-info">
+                <div class="workout-row-title">${star}${escapeHtml(w.name)}</div>
+                <div class="workout-row-meta">${escapeHtml(w.category)} · ${minutes} min · Niveau ${w.difficulty}/5</div>
+            </div>
+            ${miniProfileSvg(w, selected)}
+        </button>`;
+    }
+
+    function featuredRecommendationCard(item) {
         const w = item.workout || item;
         const minutes = Math.round(w.duration_seconds / 60);
         const selected = root.state && root.state.activeWorkout && root.state.activeWorkout.id === w.id;
         const total = Math.max(1, w.duration_seconds);
         let x = 0;
         const bars = w.steps.map(step => {
-            const width = step.duration / total * 100;
-            const height = Math.max(8, Math.min(44, (step.target_pct || .5) / 1.35 * 44));
-            const bar = `<rect x="${x.toFixed(2)}" y="${(46 - height).toFixed(2)}" width="${Math.max(.8, width - .6).toFixed(2)}" height="${height.toFixed(2)}" rx="1" class="${selected ? 'profile-accent' : ''}"></rect>`;
+            const width = step.duration / total * 318;
+            const height = Math.max(8, Math.min(46, (step.target_pct || .5) / 1.35 * 46));
+            const y = 52 - height;
+            const bar = `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, width - 1).toFixed(1)}" height="${height.toFixed(1)}" rx="2" fill="${selected ? '#7AA2F7' : '#4A5366'}"></rect>`;
             x += width;
             return bar;
         }).join('');
-        const reasonMarkup = reason ? `<p class="recommendation-reason">${escapeHtml(reason)}</p>` : '';
-        return `<article class="training-card${selected ? ' selected' : ''}" role="button" tabindex="0" aria-label="Voir ${escapeHtml(w.name)}" data-category="${escapeHtml(w.category)}" data-duration="${minutes}" data-difficulty="${w.difficulty}" onclick="CycloTrainingUI.showWorkout('${w.id}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CycloTrainingUI.showWorkout('${w.id}')}"><svg class="training-card-profile" viewBox="0 0 100 48" preserveAspectRatio="none" aria-hidden="true">${bars}</svg><div class="training-card-copy"><span class="training-category">${escapeHtml(w.category)}</span><h3>${escapeHtml(w.name)}</h3><p>${minutes} min · Difficulté ${w.difficulty}/5</p>${reasonMarkup}</div><div class="training-card-actions"><button class="btn btn-primary" onclick="event.stopPropagation();selectWorkout('${w.id}')">${selected ? 'Choisi' : 'Choisir'}</button></div></article>`;
+        return `<article class="featured-recommendation-card${selected ? ' selected' : ''}">
+            <div class="featured-rec-title">${escapeHtml(w.name)}</div>
+            <div class="featured-rec-meta">${minutes} min · ${escapeHtml(w.category)} · Niveau ${w.difficulty} sur 5</div>
+            <svg role="img" aria-label="Profil de la séance ${escapeHtml(w.name)}" viewBox="0 0 318 52" class="featured-rec-svg">${bars}</svg>
+            <div class="featured-rec-reason">${escapeHtml(item.reason || 'Adaptée à votre profil.')}</div>
+            <button class="btn btn-primary btn-wide" style="height:48px;margin-top:14px" onclick="selectWorkout('${w.id}'); switchTab('compteur')">Choisir cette séance</button>
+        </article>`;
     }
 
     function renderWorkouts() {
@@ -122,11 +155,17 @@
         if (selectedStatus) {
             const selected = root.state && root.state.activeWorkout;
             selectedStatus.innerHTML = selected
-                ? `<div><span><strong>${escapeHtml(selected.name)}</strong><span>${Math.round(selected.duration_seconds / 60)} min · ${escapeHtml(selected.objective)}</span></span><button class="text-action" onclick="selectWorkout(null)">Roule libre</button></div>`
-                : '<div><span><strong>Mode roule libre</strong><span>Aucun intervalle structuré</span></span></div>';
+                ? `<div><span><strong>${escapeHtml(selected.name)}</strong> · <span>${Math.round(selected.duration_seconds / 60)} min · ${escapeHtml(selected.objective)}</span></span><button class="text-action" onclick="selectWorkout(null); switchTab('compteur')">Roule libre</button></div>`
+                : '<div><span><strong>Mode roule libre</strong> · <span>Aucun intervalle structuré</span></span></div>';
         }
-        rec.innerHTML = result.recommendations.map(item => workoutCard(item, item.reason)).join('');
-        all.innerHTML = root.CycloTrainingLibrary.list.map(item => workoutCard(item)).join('');
+        if (result.recommendations && result.recommendations.length > 0) {
+            rec.innerHTML = featuredRecommendationCard(result.recommendations[0]);
+        } else {
+            rec.innerHTML = '<p class="empty-state">Sélectionnez un profil pour obtenir des recommandations.</p>';
+        }
+
+        const otherRecIds = new Set((result.recommendations || []).slice(1).map(r => (r.workout ? r.workout.id : r.id)));
+        all.innerHTML = root.CycloTrainingLibrary.list.map(item => compactWorkoutRow(item, otherRecIds.has(item.id))).join('');
         filterWorkouts();
     }
 
@@ -134,7 +173,7 @@
         const category = (document.getElementById('workoutCategoryFilter') || {}).value || '';
         const duration = Number((document.getElementById('workoutDurationFilter') || {}).value) || 0;
         const difficulty = Number((document.getElementById('workoutDifficultyFilter') || {}).value) || 0;
-        document.querySelectorAll('#allWorkouts .training-card').forEach(card => {
+        document.querySelectorAll('#allWorkouts .workout-compact-row, #allWorkouts .training-card').forEach(card => {
             const ok = (!category || card.dataset.category === category) && (!duration || Number(card.dataset.duration) <= duration) && (!difficulty || Number(card.dataset.difficulty) <= difficulty);
             card.style.display = ok ? 'flex' : 'none';
         });
@@ -145,7 +184,17 @@
         if (!w) return;
         const modal = document.getElementById('workoutDetailModal');
         document.getElementById('workoutDetailTitle').textContent = w.name;
-        document.getElementById('workoutDetailContent').innerHTML = `<p>${escapeHtml(w.description)}</p><p><strong>Objectif :</strong> ${escapeHtml(w.objective)}</p><ol>${w.steps.map(s => `<li>${escapeHtml(s.desc)} — ${root.formatTime(s.duration)} — ${state.ftp ? `${Math.round(state.ftp * s.target_pct)} W (${s.type})` : `${s.type}, au ressenti`}</li>`).join('')}</ol>${w.is_ftp_test ? '<p class="training-warning">Limite : 95 % de 20 minutes est une approximation influencée par le protocole, la motivation et la fatigue.</p>' : ''}`;
+        document.getElementById('workoutDetailContent').innerHTML = `
+            <p>${escapeHtml(w.description)}</p>
+            <p><strong>Objectif :</strong> ${escapeHtml(w.objective)}</p>
+            <p class="muted">${Math.round(w.duration_seconds / 60)} min · ${escapeHtml(w.category)} · Niveau ${w.difficulty}/5</p>
+            <ol>${w.steps.map(s => `<li>${escapeHtml(s.desc)} — ${root.formatTime(s.duration)} — ${state.ftp ? `${Math.round(state.ftp * s.target_pct)} W (${s.type})` : `${s.type}, au ressenti`}</li>`).join('')}</ol>
+            ${w.is_ftp_test ? '<p class="training-warning">Limite : 95 % de 20 minutes est une approximation influencée par le protocole, la motivation et la fatigue.</p>' : ''}
+            <div class="button-row" style="margin-top:20px">
+                <button class="btn btn-primary btn-wide" onclick="selectWorkout('${w.id}'); document.getElementById('workoutDetailModal').style.display='none'; switchTab('compteur')">Choisir cette séance</button>
+                <button class="btn btn-secondary btn-wide" onclick="document.getElementById('workoutDetailModal').style.display='none'">Fermer</button>
+            </div>
+        `;
         modal.style.display = 'flex';
     }
 
@@ -172,8 +221,9 @@
         currentSession = session;
         const modal = document.getElementById('postSessionModal');
         if (!modal) return;
-        document.getElementById('postSessionTitle').textContent = session.workout_name || 'Votre bilan';
-        document.getElementById('postSessionSummary').textContent = `${new Date(session.started_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${Math.round(session.duration_seconds / 60)} min`;
+        document.getElementById('postSessionTitle').textContent = 'Séance terminée';
+        const dateStr = new Date(session.started_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        document.getElementById('postSessionSummary').textContent = `${session.workout_name || 'Roule libre'} · ${dateStr}`;
         const next = root.CycloTrainingRecommendations.recommend(activeProfile(), ownSessions(), root.CycloTrainingLibrary, 1).recommendations[0];
         const nextEl = document.getElementById('postSessionNext');
         if (nextEl) nextEl.textContent = next ? `Prochaine séance suggérée : ${next.workout.name}. ${next.reason}` : '';
@@ -191,11 +241,13 @@
     function skipFeedback() { document.getElementById('postSessionModal').style.display = 'none'; currentSession = null; }
     function keepCurrentSession() {
         document.getElementById('postSessionModal').style.display = 'none';
-        root.showAppToast('Séance conservée dans votre historique.');
+        root.showAppToast('Séance enregistrée dans votre historique.');
         currentSession = null;
     }
     async function discardCurrentSession() {
-        if (!currentSession || !root.deleteSessionById) return;
+        if (!currentSession) return;
+        if (!confirm('Supprimer cette séance sans l’enregistrer ? Cette action est irréversible.')) return;
+        if (!root.deleteSessionById) return;
         const id = currentSession.id;
         await root.deleteSessionById(id);
         const stillExists = root.getStoredSessions && root.getStoredSessions().some(session => session.id === id);

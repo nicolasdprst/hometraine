@@ -3,6 +3,10 @@
 let waitingWorker = null;
 let appToastTimer = null;
 
+if (typeof document !== 'undefined' && document.addEventListener) {
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(e => document.addEventListener(e, ev => ev.preventDefault()));
+}
+
 window.showAppToast = function(message, type = 'success') {
     const toast = document.getElementById('appToast');
     if (!toast) return;
@@ -105,9 +109,102 @@ window.switchTab = function(tabId) {
     if ((tabId === 'workouts' || tabId === 'settings') && window.CycloTrainingUI) {
         window.CycloTrainingUI.refresh();
     }
+    if (tabId === 'settings' && window.updateSettingsSummaryUI) {
+        window.updateSettingsSummaryUI();
+    }
 };
 
-// --- GESTION DES PARAMÈTRES ---
+// --- GESTION DES PARAMÈTRES / RÉGLAGES ---
+window.updateSettingsSummaryUI = function() {
+    const p = window.profilesManager ? window.profilesManager.activeProfile : null;
+    const profileValEl = document.getElementById('settingsCurrentProfileVal');
+    if (profileValEl) {
+        profileValEl.textContent = p ? p.display_name : 'Aucun';
+    }
+
+    const ftpValEl = document.getElementById('settingsCurrentFtpVal');
+    if (ftpValEl) {
+        ftpValEl.textContent = state.ftp ? `${state.ftp} W` : (p && p.ftp_watts ? `${p.ftp_watts} W` : 'Inconnue');
+    }
+
+    const ftpSmartValEl = document.getElementById('settingsCurrentFtpSmartVal');
+    if (ftpSmartValEl) {
+        if (p && p.ftp_confidence && p.ftp_confidence !== 'unknown' && p.ftp_watts) {
+            ftpSmartValEl.textContent = `${p.ftp_watts} W`;
+        } else {
+            ftpSmartValEl.textContent = 'Analyser';
+        }
+    }
+
+    const goalLabels = {
+        restart: 'Reprise',
+        endurance: 'Endurance',
+        general_progress: 'Progression générale',
+        ftp: 'Amélioration FTP',
+        performance: 'Performance'
+    };
+    const intensityLabels = {
+        gentle: 'Plutôt douce',
+        balanced: 'Équilibrée',
+        intense: 'Plutôt intense'
+    };
+
+    const goalValEl = document.getElementById('settingsCurrentGoalVal');
+    if (goalValEl) {
+        goalValEl.textContent = p && p.training_goal ? (goalLabels[p.training_goal] || p.training_goal) : 'Progression générale';
+    }
+
+    const sessionsValEl = document.getElementById('settingsCurrentSessionsVal');
+    if (sessionsValEl) {
+        sessionsValEl.textContent = p && p.sessions_per_week ? `${p.sessions_per_week}` : 'Non défini';
+    }
+
+    const durationValEl = document.getElementById('settingsCurrentDurationVal');
+    if (durationValEl) {
+        durationValEl.textContent = p && p.session_duration_minutes ? `${p.session_duration_minutes} min` : 'Non définie';
+    }
+
+    const intensityValEl = document.getElementById('settingsCurrentIntensityVal');
+    if (intensityValEl) {
+        intensityValEl.textContent = p && p.intensity_preference ? (intensityLabels[p.intensity_preference] || p.intensity_preference) : 'Équilibrée';
+    }
+
+    const cloudValEl = document.getElementById('settingsCurrentCloudVal');
+    if (cloudValEl) {
+        const isAuth = window.supabaseClient && window.supabaseClient.isAuthenticated();
+        if (isAuth) {
+            const user = window.supabaseClient.getUser();
+            cloudValEl.textContent = user && user.email ? user.email : 'Connecté';
+        } else {
+            cloudValEl.textContent = 'Non connecté';
+        }
+    }
+};
+
+window.openSettingsModal = function(id) {
+    const modal = document.getElementById(id);
+    if (!modal) return;
+    if (id === 'settingsProfilesModal' && window.profilesManager) {
+        window.profilesManager.renderProfilesListInSettings();
+    }
+    if (id === 'settingsFtpSmartModal' && window.CycloTrainingUI) {
+        window.CycloTrainingUI.refresh();
+    }
+    if (id === 'settingsTrainingModal' && window.CycloTrainingUI) {
+        window.CycloTrainingUI.refresh();
+    }
+    if (id === 'settingsSyncModal') {
+        updateSupabaseAccountUI();
+    }
+    modal.style.display = 'flex';
+};
+
+window.closeSettingsModal = function(id) {
+    const modal = document.getElementById(id);
+    if (modal) modal.style.display = 'none';
+    if (window.updateSettingsSummaryUI) window.updateSettingsSummaryUI();
+};
+
 function loadSettings() {
     const savedFtp = localStorage.getItem('userFTP');
     const demoBtn = document.getElementById('demoBtn');
@@ -128,6 +225,7 @@ function loadSettings() {
     if (kioskDemoBtn && state.bleStatus === 'disconnected') {
         kioskDemoBtn.style.display = devMode ? 'flex' : 'none';
     }
+    if (window.updateSettingsSummaryUI) window.updateSettingsSummaryUI();
 }
 
 function updateZonesDisplay() {
@@ -167,6 +265,7 @@ window.saveSettings = function() {
         }
 
         updateZonesDisplay();
+        if (window.updateSettingsSummaryUI) window.updateSettingsSummaryUI();
         alert('Paramètres et FTP enregistrés !');
     }
 };
@@ -218,6 +317,7 @@ function updateSupabaseAccountUI() {
         if (loginForm) loginForm.style.display = 'block';
         if (loggedInBox) loggedInBox.style.display = 'none';
     }
+    if (window.updateSettingsSummaryUI) window.updateSettingsSummaryUI();
 }
 
 window.handleSupabaseLogin = async function() {
