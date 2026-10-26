@@ -323,7 +323,7 @@ const profilesManager = {
             name.textContent = p.display_name;
             const ftp = document.createElement('div');
             ftp.className = 'profile-ftp';
-            ftp.textContent = p.ftp_watts ? `⚡ FTP : ${p.ftp_watts} W` : '⚡ FTP inconnue';
+            ftp.textContent = p.ftp_watts ? `FTP ${p.ftp_watts} W` : 'FTP inconnue';
             info.append(name, ftp);
             card.append(avatar, info);
             if (!this.activeProfile && this.lastProfileId === p.id) {

@@ -181,6 +181,12 @@ body.zone-high, body.zone-low { background: linear-gradient(var(--tint-bad), var
 .modal-card > .form-control, .profile-form > .form-control { margin: 5px 0 12px; }
 .profile-picker-modal { align-self: center; }
 .picker-profiles-grid { display: grid; gap: 8px; margin: 18px 0; }
+.profile-card { display: flex; width: 100%; min-height: 62px; align-items: center; gap: 11px; padding: 10px 12px; color: var(--text-primary); background: #111419; border: 1px solid var(--border); border-radius: var(--radius-card); text-align: left; cursor: pointer; }
+.profile-card.active { border-color: var(--accent); }
+.profile-card .profile-info { min-width: 0; flex: 1; }
+.profile-card .profile-name { font-size: 13px; font-weight: 700; }
+.profile-card .profile-ftp { color: var(--text-secondary); font-size: 10px; }
+.profile-active-tag { color: var(--accent); font-size: 9px; font-weight: 700; text-transform: uppercase; }
 .profile-form { display: grid; margin: 14px 0; padding-top: 14px; border-top: 1px solid var(--border); }
 .check-row { display: flex; min-height: 44px; align-items: center; gap: 9px; color: var(--text-secondary); font-size: 12px; }
 .color-fieldset { margin: 8px 0 14px; padding: 0; border: 0; }
@@ -213,6 +219,15 @@ body.zone-high, body.zone-low { background: linear-gradient(var(--tint-bad), var
 
 .app-toast, .update-toast { position: fixed; z-index: 150; right: 16px; left: 16px; width: min(calc(100% - 32px), 440px); margin: auto; padding: 12px 14px; color: var(--text-primary); background: #222832; border: 1px solid var(--border-strong); border-radius: var(--radius-btn); font-size: 12px; }
 .app-toast { top: max(16px, env(safe-area-inset-top)); }.update-toast { bottom: calc(88px + env(safe-area-inset-bottom)); }
+
+/* Les vues historiques partagent désormais les mêmes surfaces sobres. */
+#sessionAnalyticsView { background: var(--bg); }
+.sa-header, .sa-section, .sa-actions { max-width: 480px; }
+.sa-header-title, .sa-header-workout, .sa-back-btn { color: var(--accent); }
+.sa-stat-card, .sa-chart-wrapper, .sa-chart-toggle, .sa-ftp-note, .sa-effort-card, .sa-variability-card, .sa-details-table, .sa-no-data-card { background: var(--surface); border-color: var(--border); border-radius: var(--radius-card); }
+.sa-toggle-btn.active { color: var(--accent); background: rgba(122,162,247,.10); }
+.sa-var-interpretation { color: var(--text-secondary); }
+.email-attachment-row, .profile-email-fields { background: #111419; border-color: var(--border); border-radius: 8px; }
 
 @media (min-width: 700px) {
     body { padding-bottom: 0; padding-left: 92px; }
