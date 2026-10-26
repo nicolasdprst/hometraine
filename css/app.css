@@ -103,14 +103,31 @@ body.zone-low::before {
 .section-heading h2 { margin: 0; }
 .section-heading .muted { font-size: 11px; }
 .selected-workout-status { margin-bottom: 20px; }
-.selected-workout-status > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 11px 12px; background: rgba(122,162,247,.08); border: 1px solid rgba(122,162,247,.3); border-radius: var(--radius-card); }
-.selected-workout-status strong, .selected-workout-status span { display: block; }
-.selected-workout-status strong { font-size: 13px; }
-.selected-workout-status span { margin-top: 2px; color: var(--text-secondary); font-size: 10px; }
-.filter-pills { display: flex; flex-wrap: wrap; gap: 7px; margin: 12px 0; }
-.filter-pills label { position: relative; }
-.filter-pills label > span { position: absolute; z-index: 1; top: -6px; left: 10px; padding: 0 3px; color: var(--text-secondary); background: var(--bg); font-size: 8px; text-transform: uppercase; }
-.filter-pills select { min-height: 40px; max-width: 145px; padding: 8px 28px 7px 10px; color: var(--text-primary); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px; font-size: 11px; }
+.selected-workout-status > div { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 14px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.selected-workout-status strong { font-size: 14px; font-weight: 500; }
+.selected-workout-status span { color: var(--text-secondary); font-size: 13px; }
+
+.filter-pills { display: flex; flex-wrap: nowrap; gap: 8px; margin: 14px 0 18px; width: 100%; }
+.filter-pills label { flex: 1; min-width: 0; position: relative; }
+.filter-pills label > span { position: absolute; z-index: 1; top: -7px; left: 10px; padding: 0 4px; color: var(--text-secondary); background: var(--bg); font-size: 11px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.filter-pills select { width: 100%; min-width: 0; max-width: none; min-height: 40px; padding: 8px 24px 7px 10px; color: var(--text-primary); background: var(--surface); border: 1px solid var(--border-strong); border-radius: 999px; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; overflow: hidden; appearance: none; -webkit-appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%239AA3B2' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10l-5 5z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+
+.recommended-container { margin: 8px 0 16px; }
+.featured-recommendation-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); padding: 16px; margin: 0; }
+.featured-rec-title { font-size: 17px; font-weight: 600; color: var(--text-primary); }
+.featured-rec-meta { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }
+.featured-rec-svg { display: block; width: 100%; height: 52px; margin-top: 14px; }
+.featured-rec-reason { font-size: 13px; color: var(--text-secondary); margin-top: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.workout-compact-list { display: flex; flex-direction: column; width: 100%; border-radius: var(--radius-card); }
+.workout-compact-row { display: flex; width: 100%; min-height: 64px; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; background: transparent; border: 0; border-top: 1px solid var(--border); color: var(--text-primary); text-align: left; cursor: pointer; }
+.workout-compact-row:first-child { border-top: 0; }
+.workout-compact-row:hover { background: rgba(255, 255, 255, .03); }
+.workout-row-info { min-width: 0; flex: 1; }
+.workout-row-title { font-size: 15px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workout-row-meta { font-size: 13px; color: var(--text-secondary); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.star-badge { color: var(--accent); margin-right: 4px; font-size: 12px; }
+
 .training-grid { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
 .training-card { display: flex; min-width: 0; align-items: center; gap: 11px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); cursor: pointer; }
 .training-card.selected { border-color: rgba(122,162,247,.7); }
@@ -119,14 +136,14 @@ body.zone-low::before {
 .training-card-profile rect.profile-accent { fill: var(--accent); }
 .training-card-copy { min-width: 0; flex: 1; }
 .training-card h3 { margin: 0 0 3px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.training-card p { margin: 0; color: var(--text-secondary); font-size: 10px; }
-.training-category { color: var(--accent); font-size: 9px; font-weight: 700; text-transform: uppercase; }
-.training-meta { margin-top: 5px; color: var(--text-secondary); font-size: 10px; }
+.training-card p { margin: 0; color: var(--text-secondary); font-size: 12px; }
+.training-category { color: var(--accent); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.training-meta { margin-top: 5px; color: var(--text-secondary); font-size: 12px; }
 .training-card-actions { display: flex; flex-direction: column; gap: 3px; }
-.training-card-actions .btn { min-height: 38px; padding: 6px 9px; font-size: 10px; }
-.recommendation-reason { margin: 8px 0 0; padding: 9px 10px; color: var(--text-secondary); background: rgba(122,162,247,.07); border-left: 2px solid var(--accent); border-radius: 0 6px 6px 0; font-size: 11px; }
+.training-card-actions .btn { min-height: 38px; padding: 6px 9px; font-size: 11px; }
+.recommendation-reason { margin: 8px 0 0; padding: 9px 10px; color: var(--text-secondary); background: rgba(122,162,247,.07); border-left: 2px solid var(--accent); border-radius: 0 6px 6px 0; font-size: 12px; }
 .gemini-advice { margin-top: 10px; text-align: center; }
-.gemini-advice p { margin: 4px 0; font-size: 11px; text-align: left; }
+.gemini-advice p { margin: 4px 0; font-size: 12px; text-align: left; }
 .training-error { color: var(--bad-text) !important; }
 
 .notice-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
