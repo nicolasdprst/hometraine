@@ -548,7 +548,7 @@ const SessionDetail = (() => {
             <button class="btn btn-secondary sa-action-btn" onclick="SessionDetail.emailCurrent()">
                 Envoyer par e-mail
             </button>
-            <button class="btn btn-danger sa-action-btn" onclick="SessionDetail.deleteCurrent()">
+            <button class="btn btn-secondary danger-text sa-action-btn" onclick="SessionDetail.deleteCurrent()">
                 Supprimer la séance
             </button>
             <button class="btn btn-secondary sa-action-btn" onclick="SessionDetail.close()">
