@@ -120,8 +120,10 @@ body.zone-high, body.zone-low { background: linear-gradient(var(--tint-bad), var
 .summary-secondary { display: none; }
 .history-list { display: grid; gap: 18px; }
 .history-month { display: grid; gap: 7px; }
+.history-month-items { display: grid; gap: 7px; }
 .history-month-title { margin: 0; color: var(--text-secondary); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
 .history-item-card { display: flex; align-items: center; gap: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.history-item-content { min-width: 0; flex: 1; }
 .history-item-card h3 { margin: 0; }
 .history-date { color: var(--text-secondary); font-size: 10px; }
 .history-metrics-row { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; color: var(--text-secondary); font-size: 10px; }

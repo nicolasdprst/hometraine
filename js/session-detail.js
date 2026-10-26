@@ -94,6 +94,20 @@ const SessionDetail = (() => {
         hideView();
     }
 
+    function currentSession() {
+        return (window.getStoredSessions ? window.getStoredSessions() : []).find(session => session.id === currentSessionId) || null;
+    }
+
+    function emailCurrent() {
+        const session = currentSession();
+        if (session && window.CycloEmail) window.CycloEmail.openForSession(session);
+    }
+
+    async function deleteCurrent() {
+        const session = currentSession();
+        if (session && window.deleteSessionById) await window.deleteSessionById(session.id);
+    }
+
     function onSessionDeleted(sessionId) {
         if (currentSessionId === sessionId) {
             close();
@@ -532,8 +546,11 @@ const SessionDetail = (() => {
             <button class="btn btn-primary sa-action-btn" onclick="exportTCXById('${session.id}')">
                 📥 Télécharger TCX
             </button>
-            <button class="btn btn-secondary sa-action-btn" onclick="CycloEmail.openForSession('${session.id}')">
+            <button class="btn btn-secondary sa-action-btn" onclick="SessionDetail.emailCurrent()">
                 ✉ Envoyer par e-mail
+            </button>
+            <button class="btn btn-danger sa-action-btn" onclick="SessionDetail.deleteCurrent()">
+                Supprimer la séance
             </button>
             <button class="btn btn-secondary sa-action-btn" onclick="SessionDetail.close()">
                 ← Retour à l'historique
@@ -793,6 +810,8 @@ const SessionDetail = (() => {
         open,
         close,
         switchChart,
+        emailCurrent,
+        deleteCurrent,
         isOpen: () => currentSessionId !== null,
         getCurrentSessionId: () => currentSessionId,
         onSessionDeleted,
