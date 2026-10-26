@@ -83,7 +83,6 @@
             <article id="kioskWorkoutBanner" class="workout-live-card" aria-live="polite">
                 <div class="workout-live-head">
                     <div>
-                        <span class="eyebrow">Séance sélectionnée</span>
                         <strong id="kioskWorkoutNameDisplay">Roule libre</strong>
                     </div>
                     <span id="kioskWorkoutTimeDisplay" class="time-chip">--:--</span>
@@ -93,7 +92,6 @@
             </article>
 
             <section id="kioskWattsCard" class="power-hero" aria-live="polite">
-                <span class="eyebrow">Puissance</span>
                 <div class="power-reading"><strong id="kioskWattsVal" class="is-idle">0</strong><span>W</span></div>
                 <div id="targetStatusBadge" class="target-badge neutral" style="display:none">Pas de cible</div>
                 <p id="targetDetailDisplay" class="target-detail">Roule libre</p>
@@ -136,7 +134,7 @@
         </section>
 
         <section id="history" class="tab-content" aria-labelledby="historyTitle">
-            <header class="page-header"><div><span class="eyebrow">Progression</span><h1 id="historyTitle">Historique</h1></div></header>
+            <header class="page-header"><h1 id="historyTitle">Historique</h1></header>
             <div id="legacyMigrationBanner" class="notice-card" style="display:none">
                 <div><strong>Anciennes activités détectées</strong><small><span id="legacySessionCount">0</span> séance(s) à importer.</small></div>
                 <button class="btn btn-secondary" onclick="migrateLegacyHistory()">Importer</button>
