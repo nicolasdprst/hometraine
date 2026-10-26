@@ -73,6 +73,7 @@ function updateLiveMetrics() {
 
     const kioskWattsCard = document.getElementById('kioskWattsCard');
     if (kioskWattsCard) kioskWattsCard.style.borderBottomColor = zoneColor;
+    if (window.CycloUI) window.CycloUI.renderTargetFeedback();
 }
 
 function syncControlsUI() {

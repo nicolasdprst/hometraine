@@ -49,6 +49,7 @@ function selectWorkout(workoutId) {
     renderWorkoutStepList();
     updateWorkoutBanner();
     if (window.updateKioskWorkoutBanner) window.updateKioskWorkoutBanner();
+    if (window.CycloUI) window.CycloUI.renderCounter();
     if (window.CycloTrainingUI) window.CycloTrainingUI.renderWorkouts();
     if (window.switchTab) {
         window.switchTab(state.currentTab === 'dashboard' ? 'dashboard' : 'compteur');

@@ -136,6 +136,8 @@ function startSession() {
         return;
     }
     state.isRecording = true;
+    state.isPaused = false;
+    state.pauseStartedMonotonic = null;
     state.sessionStatus = 'recording';
     state.currentSessionId = createCycloDashId();
     state.sessionProfileId = activeProfile.id;
@@ -209,8 +211,10 @@ function startSession() {
 // --- FIN DE SESSION ---
 function stopSession() {
     if (!state.isRecording) return;
-    tick();
+    if (!state.isPaused) tick();
     state.isRecording = false;
+    state.isPaused = false;
+    state.pauseStartedMonotonic = null;
     state.sessionStatus = 'stopped';
     state.stopTime = new Date();
     if (sessionTickInterval) {
@@ -249,7 +253,7 @@ function stopSession() {
 
 // --- TICK DE MESURE (CHAQUE SECONDE) ---
 function tick() {
-    if (!state.isRecording) return;
+    if (!state.isRecording || state.isPaused) return;
 
     const nowMonotonic = monotonicNow();
     const nowWall = Date.now();
@@ -352,6 +356,8 @@ function tick() {
     state.sessionData.speed.push(speedValue);
     state.sessionData.distance.push(state.totalDistanceM);
 
+    if (window.CycloUI) window.CycloUI.renderCounter();
+
     // Sauvegarde de reprise toutes les 30 secondes de temps réellement écoulé.
     if (state.elapsedTime - lastBackupElapsed >= 30) {
         lastBackupElapsed = state.elapsedTime;
@@ -440,6 +446,7 @@ function updateKioskWorkoutBanner() {
 
     if (!state.activeWorkout) {
         banner.classList.remove('active');
+        if (window.CycloUI) window.CycloUI.renderCounter();
         return;
     }
     banner.classList.add('active');
@@ -474,6 +481,7 @@ function updateKioskWorkoutBanner() {
 
     const color = getZoneColor(step.type);
     banner.style.borderLeftColor = color;
+    if (window.CycloUI) window.CycloUI.renderCounter();
 }
 
 // Expositions globales
