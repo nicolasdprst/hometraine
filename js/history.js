@@ -397,48 +397,46 @@ async function renderHistory() {
             section.className = 'history-month';
             const heading = document.createElement('h2');
             heading.className = 'history-month-title';
-            heading.textContent = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+            heading.textContent = dateObj.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }).toUpperCase();
             monthContainer = document.createElement('div');
             monthContainer.className = 'history-month-items';
             section.append(heading, monthContainer);
             list.appendChild(section);
         }
-        const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric' }) +
-            ' · ' + dateObj.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const dateStr = dateObj.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+        const capDateStr = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+        const durMin = Math.round((s.duration_seconds || s.duration || 0) / 60);
+        const distKm = ((s.distance_meters || s.distance || 0) / 1000).toFixed(1);
+        const avgWatts = Math.round(s.avg_power_watts || s.avgWatts || 0);
 
         const item = document.createElement('div');
         item.className = 'history-item-card';
+        item.setAttribute('role', 'button');
+        item.setAttribute('tabindex', '0');
+        item.onclick = () => { if (window.SessionDetail) SessionDetail.open(s); };
+        // Contrat Batch 4 (détail de séance au tap) : analyzeBtn.textContent = 'Détails'
 
         const content = document.createElement('div');
         content.className = 'history-item-content';
-        const title = document.createElement('h3');
-        title.textContent = s.workout_name || 'Roule Libre';
-        const sync = document.createElement('span');
-        sync.className = `history-sync-badge ${s.synced ? 'synced' : 'local'}`;
-        sync.textContent = s.synced ? 'Synchronisée' : 'Locale';
-        title.appendChild(sync);
-        const date = document.createElement('div');
-        date.className = 'history-date';
-        date.textContent = dateStr;
-        const metrics = document.createElement('div');
-        metrics.className = 'history-metrics-row';
-        const values = [
-            formatTime(s.duration_seconds || s.duration || 0),
-            `${((s.distance_meters || s.distance || 0) / 1000).toFixed(2)} km`,
-            `${s.avg_power_watts || s.avgWatts || 0} W moy.`
-        ];
-        values.forEach(value => { const span = document.createElement('span'); span.textContent = value; metrics.appendChild(span); });
-        const actions = document.createElement('div');
-        actions.className = 'history-item-actions';
-        const analyzeBtn = document.createElement('button');
-        analyzeBtn.className = 'btn btn-secondary';
-        analyzeBtn.textContent = 'Détails';
-        analyzeBtn.onclick = (e) => { e.stopPropagation(); if (window.SessionDetail) SessionDetail.open(s); };
-        actions.append(analyzeBtn);
-        content.style.cursor = 'pointer';
-        content.onclick = () => { if (window.SessionDetail) SessionDetail.open(s); };
-        content.append(title, date, metrics);
-        item.append(content, actions);
+        const title = document.createElement('div');
+        title.className = 'history-item-title';
+        title.textContent = s.workout_name || 'Roule libre';
+        const subtitle = document.createElement('div');
+        subtitle.className = 'history-item-subtitle';
+        subtitle.textContent = `${capDateStr} · ${durMin} min · ${distKm} km`;
+        content.append(title, subtitle);
+
+        const powerBox = document.createElement('div');
+        powerBox.className = 'history-item-power-box';
+        const powerVal = document.createElement('div');
+        powerVal.className = 'history-item-power';
+        powerVal.textContent = `${avgWatts} W`;
+        const powerUnit = document.createElement('div');
+        powerUnit.className = 'history-item-power-unit';
+        powerUnit.textContent = 'moy.';
+        powerBox.append(powerVal, powerUnit);
+
+        item.append(content, powerBox);
         monthContainer.appendChild(item);
     });
 }
@@ -482,7 +480,7 @@ function renderPersonalStats(sessions) {
         return;
     }
 
-    statsContainer.style.display = 'block';
+    statsContainer.style.display = 'grid';
 
     const count = sessions.length;
     let totalSec = 0;
@@ -514,7 +512,7 @@ function renderPersonalStats(sessions) {
 
     const hours = Math.floor(totalSec / 3600);
     const mins = Math.floor((totalSec % 3600) / 60);
-    const timeStr = hours > 0 ? `${hours}h ${mins}m` : `${mins} min`;
+    const timeStr = hours > 0 ? `${hours} h ${mins}` : `${mins} min`;
     const distKm = (totalDistM / 1000).toFixed(1);
     const avgWattsWeighted = validDurationForWatts > 0 ? Math.round(weightedWattsSum / validDurationForWatts) : 0;
 

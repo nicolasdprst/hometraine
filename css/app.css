@@ -149,26 +149,29 @@ body.zone-low::before {
 
 .notice-card { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
 .notice-card small { display: block; color: var(--text-secondary); }
-.history-summary { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: 18px; overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
-.history-summary > div { min-width: 82px; padding: 11px 8px; text-align: center; }
-.history-summary > div + div { border-left: 1px solid var(--border); }
+.history-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-bottom: 18px; border-top: 1px solid var(--border); background: transparent; }
+.history-summary > div { min-width: 0; padding: 14px 4px; text-align: left; }
+.history-summary > div + div { border-left: 1px solid var(--border); padding-left: 14px; }
 .history-summary strong, .history-summary small { display: block; white-space: nowrap; }
-.history-summary strong { font-size: 13px; }
-.history-summary small { color: var(--text-secondary); font-size: 11px; }
+.history-summary strong { font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; overflow: hidden; text-overflow: ellipsis; }
+.history-summary small { color: var(--text-secondary); font-size: 11px; margin-top: 2px; }
 .summary-secondary { display: none; }
-.history-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px; }
-.history-month { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
-.history-month-items { display: grid; grid-template-columns: minmax(0, 1fr); gap: 7px; }
-.history-month-title { margin: 0; color: var(--text-secondary); font-size: 11px; letter-spacing: .06em; text-transform: uppercase; }
-.history-item-card { display: flex; min-width: 0; align-items: center; gap: 10px; padding: 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-card); }
+.history-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; }
+.history-month { display: block; min-width: 0; }
+.history-month-items { display: block; min-width: 0; }
+.history-month-title { margin: 18px 0 6px; color: var(--text-secondary); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; font-weight: 600; }
+.history-item-card { display: flex; min-width: 0; width: 100%; justify-content: space-between; align-items: center; box-sizing: border-box; padding: 12px 0; background: transparent; border: 0; border-top: 1px solid var(--border); border-radius: 0; color: var(--text-primary); text-align: left; cursor: pointer; transition: background .15s ease; font-family: inherit; }
+.history-item-card:hover, .history-item-card:active { background: rgba(255, 255, 255, .03); }
 .history-item-content { min-width: 0; flex: 1; }
-.history-item-card h3 { margin: 0; }
+.history-item-title { font-size: 15px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-item-subtitle { font-size: 13px; color: var(--text-secondary); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-item-power-box { text-align: right; flex: 0 0 auto; margin-left: 14px; }
+.history-item-power { font-size: 15px; font-weight: 600; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+.history-item-power-unit { font-size: 11px; color: var(--text-secondary); }
 .history-date { color: var(--text-secondary); font-size: 11px; }
 .history-metrics-row { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 6px; color: var(--text-secondary); font-size: 12px; }
 .history-sync-badge, .email-status-badge { margin-left: 6px; color: var(--text-secondary); font-size: 11px; font-weight: 500; }
-.history-item-actions { display: flex; flex: 0 0 auto; }
-.history-item-actions > .btn:not(:first-child), .history-menu { display: none; }
-.history-item-actions .btn { min-height: 38px; padding: 6px 9px; font-size: 11px; }
+.history-item-actions { display: none; }
 .empty-state { padding: 34px 16px; color: var(--text-secondary); text-align: center; }
 
 .settings-stack { display: grid; gap: 20px; }
