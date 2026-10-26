@@ -119,11 +119,6 @@ async function saveSessionToHistory() {
         enqueueSync(sessionId);
     }
 
-    // 5. Proposer le téléchargement direct du fichier Strava TCX
-    if (confirm("Séance enregistrée ! Voulez-vous télécharger le fichier Strava (.tcx) maintenant ?")) {
-        downloadTCX(sessionId, sessionSummary, detailedData);
-    }
-
     renderHistory();
     if (window.CycloTrainingUI) window.CycloTrainingUI.showPostSession(sessionSummary);
 }

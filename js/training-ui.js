@@ -162,10 +162,12 @@
         currentSession = session;
         const modal = document.getElementById('postSessionModal');
         if (!modal) return;
-        document.getElementById('postSessionSummary').textContent = `${Math.round(session.duration_seconds / 60)} min · ${session.avg_power_watts} W de moyenne · ${session.workout_name}`;
+        document.getElementById('postSessionTitle').textContent = session.workout_name || 'Votre bilan';
+        document.getElementById('postSessionSummary').textContent = `${new Date(session.started_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${Math.round(session.duration_seconds / 60)} min`;
         const next = root.CycloTrainingRecommendations.recommend(activeProfile(), ownSessions(), root.CycloTrainingLibrary, 1).recommendations[0];
         const nextEl = document.getElementById('postSessionNext');
         if (nextEl) nextEl.textContent = next ? `Prochaine séance suggérée : ${next.workout.name}. ${next.reason}` : '';
+        if (root.CycloUI) root.CycloUI.renderPostSession(session);
         modal.style.display = 'flex';
     }
     function submitFeedback(rating) {
@@ -173,9 +175,31 @@
         root.CycloTrainingFeedback.save(currentSession.id, currentSession.profile_id, rating);
         document.getElementById('postSessionModal').style.display = 'none';
         root.showAppToast(`Ressenti enregistré : ${FEEDBACK_LABELS[rating]}.`);
+        currentSession = null;
         renderWorkouts();
     }
     function skipFeedback() { document.getElementById('postSessionModal').style.display = 'none'; currentSession = null; }
+    function keepCurrentSession() {
+        document.getElementById('postSessionModal').style.display = 'none';
+        root.showAppToast('Séance conservée dans votre historique.');
+        currentSession = null;
+    }
+    async function discardCurrentSession() {
+        if (!currentSession || !root.deleteSessionById) return;
+        const id = currentSession.id;
+        await root.deleteSessionById(id);
+        const stillExists = root.getStoredSessions && root.getStoredSessions().some(session => session.id === id);
+        if (!stillExists) {
+            document.getElementById('postSessionModal').style.display = 'none';
+            currentSession = null;
+        }
+    }
+    function exportCurrentSession() {
+        if (currentSession && root.exportTCXById) root.exportTCXById(currentSession.id);
+    }
+    function emailCurrentSession() {
+        if (currentSession && root.CycloEmail) root.CycloEmail.openForSession(currentSession);
+    }
 
     async function requestGeminiAdvice() {
         const p = activeProfile();
@@ -201,5 +225,5 @@
     }
 
     function refresh() { renderFtpPanel(); loadPreferences(); renderWorkouts(); }
-    root.CycloTrainingUI = Object.freeze({ refresh, renderWorkouts, filterWorkouts, showWorkout, analyzeFtp, decideFtp, savePreferences, showPostSession, submitFeedback, skipFeedback, requestGeminiAdvice });
+    root.CycloTrainingUI = Object.freeze({ refresh, renderWorkouts, filterWorkouts, showWorkout, analyzeFtp, decideFtp, savePreferences, showPostSession, submitFeedback, skipFeedback, keepCurrentSession, discardCurrentSession, exportCurrentSession, emailCurrentSession, requestGeminiAdvice });
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -166,6 +166,7 @@ body.zone-high, body.zone-low { background: linear-gradient(var(--tint-bad), var
 .switch input:checked + .slider::before { transform: translateX(18px); }
 
 .modal-overlay { position: fixed; z-index: 100; inset: 0; display: flex; align-items: flex-end; justify-content: center; padding: 18px; background: rgba(3,5,8,.82); }
+#deleteSessionModal, #emailSessionModal { z-index: 120; }
 .modal-card { width: min(100%, 440px); max-height: min(88vh, 760px); padding: 20px; overflow: auto; background: var(--surface); border: 1px solid var(--border-strong); border-radius: 16px; }
 .modal-card > .form-control, .profile-form > .form-control { margin: 5px 0 12px; }
 .profile-picker-modal { align-self: center; }

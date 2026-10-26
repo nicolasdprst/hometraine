@@ -232,8 +232,9 @@
             <section><h2>Temps dans la cible</h2><div id="postSessionTargetBar" class="target-time-bar"></div><div id="postSessionTargetLegend" class="target-legend"></div></section>
             <div id="postSessionStats" class="summary-stats"></div>
             <p id="postSessionNext" class="recommendation-reason"></p>
+            <div class="button-row"><button class="btn btn-secondary" onclick="CycloTrainingUI.exportCurrentSession()">Exporter TCX</button><button class="btn btn-secondary" onclick="CycloTrainingUI.emailCurrentSession()">Envoyer par e-mail</button></div>
             <section><h2>Comment avez-vous trouvé cette séance&nbsp;?</h2><div class="feedback-grid"><button onclick="CycloTrainingUI.submitFeedback('very_easy')">Très facile</button><button onclick="CycloTrainingUI.submitFeedback('easy')">Facile</button><button onclick="CycloTrainingUI.submitFeedback('appropriate')">Adaptée</button><button onclick="CycloTrainingUI.submitFeedback('difficult')">Difficile</button><button onclick="CycloTrainingUI.submitFeedback('too_difficult')">Trop difficile</button></div></section>
-            <div class="summary-actions"><button class="btn btn-primary btn-wide" onclick="CycloTrainingUI.submitFeedback('appropriate')">Enregistrer la séance</button><button class="text-action" onclick="CycloTrainingUI.skipFeedback()">Fermer sans ressenti</button></div>
+            <div class="summary-actions"><button class="btn btn-primary btn-wide" onclick="CycloTrainingUI.keepCurrentSession()">Conserver la séance</button><button class="text-action danger-text" onclick="CycloTrainingUI.discardCurrentSession()">Ne pas conserver</button></div>
         </div>
     </div>
 
