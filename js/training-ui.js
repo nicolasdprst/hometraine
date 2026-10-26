@@ -221,8 +221,9 @@
         currentSession = session;
         const modal = document.getElementById('postSessionModal');
         if (!modal) return;
-        document.getElementById('postSessionTitle').textContent = session.workout_name || 'Votre bilan';
-        document.getElementById('postSessionSummary').textContent = `${new Date(session.started_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })} · ${Math.round(session.duration_seconds / 60)} min`;
+        document.getElementById('postSessionTitle').textContent = 'Séance terminée';
+        const dateStr = new Date(session.started_at).toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+        document.getElementById('postSessionSummary').textContent = `${session.workout_name || 'Roule libre'} · ${dateStr}`;
         const next = root.CycloTrainingRecommendations.recommend(activeProfile(), ownSessions(), root.CycloTrainingLibrary, 1).recommendations[0];
         const nextEl = document.getElementById('postSessionNext');
         if (nextEl) nextEl.textContent = next ? `Prochaine séance suggérée : ${next.workout.name}. ${next.reason}` : '';
@@ -240,11 +241,13 @@
     function skipFeedback() { document.getElementById('postSessionModal').style.display = 'none'; currentSession = null; }
     function keepCurrentSession() {
         document.getElementById('postSessionModal').style.display = 'none';
-        root.showAppToast('Séance conservée dans votre historique.');
+        root.showAppToast('Séance enregistrée dans votre historique.');
         currentSession = null;
     }
     async function discardCurrentSession() {
-        if (!currentSession || !root.deleteSessionById) return;
+        if (!currentSession) return;
+        if (!confirm('Supprimer cette séance sans l’enregistrer ? Cette action est irréversible.')) return;
+        if (!root.deleteSessionById) return;
         const id = currentSession.id;
         await root.deleteSessionById(id);
         const stillExists = root.getStoredSessions && root.getStoredSessions().some(session => session.id === id);

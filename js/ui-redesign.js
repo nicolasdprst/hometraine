@@ -239,31 +239,67 @@
     function renderPostSession(session) {
         if (!session || !root.state) return;
         const values = root.state.sessionData.watts || [];
+        const times = root.state.sessionData.time || [];
         const finiteValues = values.filter(value => Number.isFinite(Number(value))).map(Number);
         const ftp = number(session.ftp_at_session_watts || root.state.ftp);
         const max = Math.max(300, ftp * 1.35, ...finiteValues);
-        const points = pathPoints(values, 356, 110, max);
-        const graph = el('postSessionGraph');
-        if (graph) graph.innerHTML = `<svg viewBox="0 0 356 110" preserveAspectRatio="none" role="img" aria-label="Courbe de puissance de la séance"><polyline points="${points}" fill="none" stroke="#7AA2F7" stroke-width="2" vector-effect="non-scaling-stroke"></polyline></svg>`;
 
-        const breakdown = targetBreakdown(root.state.activeWorkout, root.state.sessionData.time || [], values, ftp);
+        let workout = root.state.activeWorkout;
+        if (!workout && session.workout_id && root.CycloTrainingLibrary) {
+            workout = root.CycloTrainingLibrary.getById ? root.CycloTrainingLibrary.getById(session.workout_id) : (root.CycloTrainingLibrary.get ? root.CycloTrainingLibrary.get(session.workout_id) : null);
+        }
+        const duration = Math.max(1, workout ? totalDuration(workout) : number(session.duration_seconds), number(session.duration_seconds));
+
+        const W = 356;
+        const H = 90;
+        let barsSvg = '';
+        if (workout && Array.isArray(workout.steps) && workout.steps.length > 0) {
+            let curX = 0;
+            barsSvg = workout.steps.map(step => {
+                const stepDur = number(step.duration);
+                const barW = (stepDur / duration) * W;
+                const pct = number(step.target_pct, 0.5);
+                const barH = Math.max(6, Math.min(H - 8, (pct / 1.35) * (H - 8)));
+                const y = H - barH;
+                const r = `<rect x="${curX.toFixed(1)}" y="${y.toFixed(1)}" width="${Math.max(1, barW - 1).toFixed(1)}" height="${barH.toFixed(1)}" rx="2" fill="#4A5366"></rect>`;
+                curX += barW;
+                return r;
+            }).join('');
+        }
+
+        const points = pathPoints(values, W, H, max, times, duration);
+        const lineSvg = points ? `<polyline points="${points}" fill="none" stroke="#ECEEF2" stroke-width="1.8" stroke-linejoin="round"></polyline>` : '';
+
+        const graph = el('postSessionGraph');
+        if (graph) {
+            graph.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Profil et courbe de puissance de la séance" style="display:block;width:100%;height:100%">${barsSvg}${lineSvg}</svg>`;
+        }
+
+        const breakdown = targetBreakdown(workout, times, values, ftp);
         const total = Math.max(1, breakdown.ok + breakdown.high + breakdown.low);
+        const pctOk = Math.round(breakdown.ok / total * 100);
+        const pctHigh = Math.round(breakdown.high / total * 100);
+        const pctLow = Math.round(breakdown.low / total * 100);
+
+        const targetPct = el('postSessionTargetPct');
+        if (targetPct) targetPct.textContent = `${pctOk} %`;
+
         const targetBar = el('postSessionTargetBar');
         if (targetBar) targetBar.innerHTML = ['ok', 'high', 'low'].map(key => `<span class="${key}" style="width:${(breakdown[key] / total * 100).toFixed(1)}%"></span>`).join('');
         const legend = el('postSessionTargetLegend');
-        if (legend) legend.innerHTML = `<span>Dans la cible ${Math.round(breakdown.ok / total * 100)}%</span><span>Au-dessus ${Math.round(breakdown.high / total * 100)}%</span><span>En dessous ${Math.round(breakdown.low / total * 100)}%</span>`;
+        if (legend) legend.innerHTML = `<span>Dans la cible · ${pctOk} %</span><span>Trop haut · ${pctHigh} %</span><span>Trop bas · ${pctLow} %</span>`;
 
         const stats = el('postSessionStats');
         if (stats) {
             const cells = [
                 ['Durée', root.formatTime(number(session.duration_seconds))],
-                ['Distance', `${(number(session.distance_meters) / 1000).toFixed(2)} km`],
-                ['Puiss. moy.', `${number(session.avg_power_watts)} W`],
-                ['Puiss. max', `${number(session.max_power_watts)} W`],
-                ['Vitesse moy.', `${number(session.avg_speed_kmh).toFixed(1)} km/h`],
-                ['Travail', `${number(session.total_work_kj)} kJ`]
+                ['Distance', `${(number(session.distance_meters) / 1000).toFixed(1)} km`],
+                ['Moyenne', `${Math.round(number(session.avg_power_watts))} W`],
+                ['Max', `${Math.round(number(session.max_power_watts))} W`],
+                ['Travail', `${Math.round(number(session.total_work_kj))} kJ`],
+                ['Énergie', `${Math.round(session.energy_kcal || number(session.total_work_kj))} kcal`]
             ];
-            stats.innerHTML = cells.map(([label, value]) => `<div><strong>${escapeHtml(value)}</strong><small>${escapeHtml(label)}</small></div>`).join('');
+            stats.innerHTML = cells.map(([label, value]) => `<div><small>${escapeHtml(label)}</small><strong>${escapeHtml(value)}</strong></div>`).join('');
         }
     }
 
