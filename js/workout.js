@@ -19,6 +19,15 @@ function getZoneTargetString(zoneStr) {
     }
 }
 
+function getWorkoutStepGuidance(workout, step) {
+    if (!step) return 'Sans consigne';
+    if (workout && workout.is_ftp_test) {
+        const rpe = step.rpe ? `RPE ${step.rpe}` : 'Au ressenti';
+        return step.effort_cue ? `${rpe} · ${step.effort_cue}` : rpe;
+    }
+    return `Zone ${step.type} (${getZoneTargetString(step.type)})`;
+}
+
 function getZoneColor(zoneStr) {
     const root = getComputedStyle(document.documentElement);
     switch(zoneStr) {
@@ -151,7 +160,7 @@ function updateWorkoutBanner() {
     const timeRemaining = step.duration - state.workoutStepTimeElapsed;
 
     document.getElementById('workoutNameDisplay').innerText = `${state.activeWorkout.name} - ${step.desc} (${state.currentWorkoutStepIndex + 1}/${steps.length})`;
-    document.getElementById('workoutTargetDisplay').innerText = `Cible : Zone ${step.type} (${getZoneTargetString(step.type)})`;
+    document.getElementById('workoutTargetDisplay').innerText = `Consigne : ${getWorkoutStepGuidance(state.activeWorkout, step)}`;
     document.getElementById('workoutTimeDisplay').innerText = `Temps restant : ${formatTime(timeRemaining)}`;
     
     const color = getZoneColor(step.type);
@@ -184,6 +193,7 @@ function advanceWorkout(elapsedSeconds) {
 // Expose functions globally
 window.formatTime = formatTime;
 window.getZoneTargetString = getZoneTargetString;
+window.getWorkoutStepGuidance = getWorkoutStepGuidance;
 window.getZoneColor = getZoneColor;
 window.selectWorkout = selectWorkout;
 window.renderWorkoutStepList = renderWorkoutStepList;

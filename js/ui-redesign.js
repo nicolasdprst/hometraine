@@ -128,6 +128,7 @@
     function renderTargetFeedback() {
         if (!root.state) return;
         const current = stepAt(root.state.activeWorkout, number(root.state.elapsedTime));
+        const isFtpTest = !!(root.state.activeWorkout && root.state.activeWorkout.is_ftp_test);
         const target = stepTarget(current && current.step, root.state.ftp);
         const power = rollingPower(5);
         const enabled = root.state.displaySettings ? root.state.displaySettings.zoneFeedbackEnabled : localStorage.getItem('zoneFeedbackEnabled') !== 'false';
@@ -135,6 +136,17 @@
         const badge = el('targetStatusBadge');
         const detail = el('targetDetailDisplay');
         if (!badge || !detail) return;
+
+        if (isFtpTest && current) {
+            targetState = 'neutral';
+            badge.style.display = 'inline-flex';
+            badge.className = 'target-badge neutral';
+            badge.textContent = 'Effort au ressenti';
+            const rpe = current.step.rpe ? `RPE ${current.step.rpe}` : 'Au ressenti';
+            detail.textContent = current.step.effort_cue ? `${rpe} · ${current.step.effort_cue}` : rpe;
+            document.body.classList.remove('zone-ok', 'zone-high', 'zone-low');
+            return;
+        }
 
         if (!current || !target) {
             targetState = 'neutral';
@@ -275,19 +287,21 @@
             graph.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Profil et courbe de puissance de la séance" style="display:block;width:100%;height:100%">${barsSvg}${lineSvg}</svg>`;
         }
 
-        const breakdown = targetBreakdown(workout, times, values, ftp);
+        const breakdown = workout && workout.is_ftp_test ? { ok: 0, high: 0, low: 0 } : targetBreakdown(workout, times, values, ftp);
         const total = Math.max(1, breakdown.ok + breakdown.high + breakdown.low);
         const pctOk = Math.round(breakdown.ok / total * 100);
         const pctHigh = Math.round(breakdown.high / total * 100);
         const pctLow = Math.round(breakdown.low / total * 100);
 
         const targetPct = el('postSessionTargetPct');
-        if (targetPct) targetPct.textContent = `${pctOk} %`;
+        if (targetPct) targetPct.textContent = workout && workout.is_ftp_test ? 'Au ressenti' : `${pctOk} %`;
 
         const targetBar = el('postSessionTargetBar');
-        if (targetBar) targetBar.innerHTML = ['ok', 'high', 'low'].map(key => `<span class="${key}" style="width:${(breakdown[key] / total * 100).toFixed(1)}%"></span>`).join('');
+        if (targetBar) targetBar.innerHTML = workout && workout.is_ftp_test ? '' : ['ok', 'high', 'low'].map(key => `<span class="${key}" style="width:${(breakdown[key] / total * 100).toFixed(1)}%"></span>`).join('');
         const legend = el('postSessionTargetLegend');
-        if (legend) legend.innerHTML = `<span>Dans la cible · ${pctOk} %</span><span>Trop haut · ${pctHigh} %</span><span>Trop bas · ${pctLow} %</span>`;
+        if (legend) legend.innerHTML = workout && workout.is_ftp_test
+            ? '<span>Test guidé au ressenti, sans cible de watts.</span>'
+            : `<span>Dans la cible · ${pctOk} %</span><span>Trop haut · ${pctHigh} %</span><span>Trop bas · ${pctLow} %</span>`;
 
         const stats = el('postSessionStats');
         if (stats) {

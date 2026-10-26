@@ -485,7 +485,7 @@ function updateKioskWorkoutBanner() {
 
     if (nameEl) nameEl.innerText = `${step.desc} (${state.currentWorkoutStepIndex + 1}/${steps.length})`;
     if (timeEl) timeEl.innerText = formatTime(timeRemaining);
-    if (targetEl) targetEl.innerText = `Cible : Zone ${step.type} (${getZoneTargetString(step.type)})`;
+    if (targetEl) targetEl.innerText = `Consigne : ${getWorkoutStepGuidance(state.activeWorkout, step)}`;
 
     const color = getZoneColor(step.type);
     banner.style.borderLeftColor = color;
