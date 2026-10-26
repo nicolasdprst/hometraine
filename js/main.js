@@ -3,6 +3,10 @@
 let waitingWorker = null;
 let appToastTimer = null;
 
+if (typeof document !== 'undefined' && document.addEventListener) {
+    ['gesturestart', 'gesturechange', 'gestureend'].forEach(e => document.addEventListener(e, ev => ev.preventDefault()));
+}
+
 window.showAppToast = function(message, type = 'success') {
     const toast = document.getElementById('appToast');
     if (!toast) return;

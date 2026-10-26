@@ -10,6 +10,11 @@
 
 html { color-scheme: dark; background: var(--bg); }
 
+html, body {
+    touch-action: manipulation;
+    -webkit-text-size-adjust: 100%;
+}
+
 body {
     margin: 0;
     min-width: 320px;
@@ -25,6 +30,7 @@ body {
 }
 
 button, input, select, textarea { font: inherit; }
+input, select, textarea { font-size: 16px; } /* évite le zoom automatique au focus sur iOS */
 button, summary, select, label[for] { -webkit-tap-highlight-color: transparent; }
 button { min-height: 44px; }
 a { color: var(--accent); }
