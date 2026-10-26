@@ -486,34 +486,32 @@ const profilesManager = {
 
         this.profiles.forEach(p => {
             const row = document.createElement('div');
-            row.className = 'list-item profile-settings-row' + (p.is_archived ? ' profile-archived' : '');
-            row.style.display = 'flex';
-            row.style.alignItems = 'center';
-            row.style.justifyContent = 'space-between';
-            row.style.gap = '0.75rem';
+            row.className = 'profile-settings-row' + (p.is_archived ? ' profile-archived' : '');
 
             const identity = document.createElement('div');
-            identity.style.cssText = 'display:flex;align-items:center;gap:0.6rem';
+            identity.className = 'profile-settings-identity';
             const avatar = document.createElement('div');
-            avatar.style.cssText = `width:34px;height:34px;border-radius:50%;background-color:${validProfileColor(p.avatar_color)};color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:0.8rem`;
+            avatar.className = 'profile-avatar';
+            avatar.style.backgroundColor = validProfileColor(p.avatar_color);
             avatar.textContent = this.getInitials(p.display_name);
             const labels = document.createElement('div');
+            labels.className = 'profile-settings-copy';
             const name = document.createElement('div');
-            name.style.cssText = 'font-weight:600;color:var(--text-primary);font-size:0.95rem';
+            name.className = 'profile-settings-name';
             name.textContent = p.display_name + (p.is_archived ? ' (archivé)' : '');
             const ftp = document.createElement('div');
-            ftp.style.cssText = 'font-size:0.8rem;color:var(--text-secondary)';
-            ftp.textContent = `⚡ ${p.ftp_watts ? `FTP : ${p.ftp_watts} W` : 'FTP inconnue'} · ${p.sync_status === 'synced' ? '☁️' : '⏳'}`;
+            ftp.className = 'profile-settings-meta';
+            ftp.textContent = `${p.ftp_watts ? `FTP ${p.ftp_watts} W` : 'FTP inconnue'} · ${p.sync_status === 'synced' ? 'Synchronisé' : 'Local'}`;
             const email = document.createElement('div');
-            email.style.cssText = 'font-size:0.76rem;color:var(--text-secondary);max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap';
+            email.className = 'profile-settings-email';
             email.textContent = p.email_address
-                ? `✉ ${p.email_address}${p.email_auto_send ? ' · auto' : ''}`
-                : '✉ Aucun e-mail';
+                ? `${p.email_address}${p.email_auto_send ? ' · envoi auto' : ''}`
+                : 'Aucun e-mail';
             labels.append(name, ftp, email);
             identity.append(avatar, labels);
 
             const actions = document.createElement('div');
-            actions.style.cssText = 'display:flex;gap:0.35rem';
+            actions.className = 'profile-settings-actions';
             const addButton = (label, classes, handler) => {
                 const button = document.createElement('button');
                 button.className = classes;
@@ -521,10 +519,10 @@ const profilesManager = {
                 button.onclick = () => Promise.resolve(handler()).catch(error => alert(error.message));
                 actions.appendChild(button);
             };
-            addButton('✏️ Modifier', 'btn btn-sm btn-primary', () => this.showProfileForm(p.id));
-            if (p.is_archived) addButton('♻️ Restaurer', 'btn btn-sm btn-secondary', () => this.restoreProfile(p.id));
-            else addButton('📦 Archiver', 'btn btn-sm btn-secondary', () => this.archiveProfile(p.id));
-            addButton('🗑️', 'btn btn-sm btn-danger', () => this.deleteProfile(p.id));
+            addButton('Modifier', 'btn btn-secondary', () => this.showProfileForm(p.id));
+            if (p.is_archived) addButton('Restaurer', 'btn btn-secondary', () => this.restoreProfile(p.id));
+            else addButton('Archiver', 'btn btn-secondary', () => this.archiveProfile(p.id));
+            addButton('Supprimer', 'btn btn-danger', () => this.deleteProfile(p.id));
             row.append(identity, actions);
             listEl.appendChild(row);
         });

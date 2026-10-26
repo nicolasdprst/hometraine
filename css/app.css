@@ -155,6 +155,14 @@ body.zone-high, body.zone-low { background: linear-gradient(var(--tint-bad), var
 .preferences-grid .form-control { margin-top: 4px; }
 .settings-group > .btn, .settings-group > .settings-link { width: 100%; border-radius: 0; }
 .settings-profiles-list { display: grid; gap: 7px; padding: 13px; }
+.profile-settings-row { display: grid; gap: 9px; padding: 10px; background: #111419; border: 1px solid var(--border); border-radius: 9px; }
+.profile-settings-row.profile-archived { opacity: .6; }
+.profile-settings-identity { display: flex; min-width: 0; align-items: center; gap: 9px; }
+.profile-settings-copy { min-width: 0; }
+.profile-settings-name { font-size: 12px; font-weight: 700; }
+.profile-settings-meta, .profile-settings-email { max-width: 260px; overflow: hidden; color: var(--text-secondary); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.profile-settings-actions { display: flex; flex-wrap: wrap; gap: 5px; }
+.profile-settings-actions .btn { min-height: 36px; padding: 5px 8px; font-size: 9px; }
 .login-form { display: grid; gap: 8px; margin-top: 8px; }
 .ftp-smart-status { display: grid; gap: 2px; margin-bottom: 10px; color: var(--text-secondary); font-size: 10px; }
 .zones-list { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; padding: 13px; }
